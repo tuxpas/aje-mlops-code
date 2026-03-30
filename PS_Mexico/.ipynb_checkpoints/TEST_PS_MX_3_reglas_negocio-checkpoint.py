@@ -61,8 +61,12 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     
     pan_rec = pan_rec.merge(df_ventas[["id_cliente", "cod_ruta"]].drop_duplicates(), on="id_cliente", how="left")
     rec_validas = pan_rec.merge(productos_por_ruta, on="cod_ruta", how="inner")
-    rec_validas = rec_validas[rec_validas.apply(lambda row: row["cod_articulo_magic"] in row["cod_articulo_magic_y"], axis=1)]
-    pan_rec = rec_validas[["id_cliente", "cod_articulo_magic", "cod_ruta"]].reset_index(drop=True)
+    
+    # Usamos _x para el SKU a validar y _y para la lista de SKUs de la ruta
+    rec_validas = rec_validas[rec_validas.apply(lambda row: row["cod_articulo_magic_x"] in row["cod_articulo_magic_y"], axis=1)]
+    
+    # Seleccionamos _x y lo renombramos de vuelta a la normalidad
+    pan_rec = rec_validas[["id_cliente", "cod_articulo_magic_x", "cod_ruta"]].rename(columns={"cod_articulo_magic_x": "cod_articulo_magic"}).reset_index(drop=True)
 
     # --- 5.-8 Subida, Bajada, Mantener ---
     fecha_30dias = (fecha_actual - timedelta(days=30)).strftime('%Y-%m-%d')
@@ -252,7 +256,7 @@ def exportar_resultados(final_rec):
     rec_sf["Compania"] = rec_sf["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
     rec_sf["Sucursal"] = rec_sf["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
 
-    s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}.csv"
+    s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}_test.csv"
     wr.s3.to_csv(rec_sf, s3_path_sf, index=False, boto3_session=my_session)
     
     print("Resumen de Exportación:")
@@ -270,7 +274,7 @@ def main():
     
     df_ventas = pd.read_parquet(ruta_ventas)
     pan_rec = pd.read_parquet(ruta_recs)
-    pan_rec["id_cliente"] = "MX|" + pan_rec["id_cliente"]
+    # pan_rec["id_cliente"] = "MX|" + pan_rec["id_cliente"]
     
     # 2. Aplicar Filtros
     pan_rec_disp = aplicar_filtros_disponibilidad(pan_rec, df_ventas)
