@@ -238,7 +238,7 @@ def preparar_rutas_y_pesos(df_ventas):
 
     for ruta in rutas:
         temp = df_ventas[df_ventas["cod_ruta"] == ruta]
-        if temp["cod_articulo_magic"].nunique() < 10:
+        if temp["cod_articulo_magic"].nunique() <= 5:
             low_sku_ruta.append(ruta)
         else:
             temp.to_csv(os.path.join(OUTPUT_DIR, f"rutas/D_{ruta}_ventas.csv"), index=False)

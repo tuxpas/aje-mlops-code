@@ -83,7 +83,7 @@ def als_training_job(spark, ruta_csv_path):
 
     # --- ENTRENAMIENTO ALS (implícito, sin KMeans) ---
     als = ALS(
-        rank=10,
+        rank=15,
         maxIter=5,
         implicitPrefs=True,
         ratingCol="rating",
