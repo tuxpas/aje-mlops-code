@@ -1,4 +1,4 @@
-import subprocess
+﻿import subprocess
 import sys
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
@@ -53,7 +53,7 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     """Reglas 5.-9, 5.-8, 5.-5, 5.-3. NO 5.-7 maestro validation for Ecuador Econoredes."""
     print("Aplicando filtros de disponibilidad y stock...")
 
-    # --- 5.-9 SKUs con ventas en los últimos 14 días ---
+    # --- 5.-9 SKUs con ventas en los Ãºltimos 14 dÃ­as ---
     fecha_limite = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
     ventas_filtradas = df_ventas[pd.to_datetime(df_ventas["fecha_liquidacion"]) >= fecha_limite]
     productos_por_ruta = ventas_filtradas.groupby("cod_ruta")["cod_articulo_magic"].unique().reset_index()
@@ -70,10 +70,10 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     fecha_60dias = (fecha_actual - timedelta(days=60)).strftime('%Y-%m-%d')
     df_ultimos_30 = df_ventas[(df_ventas['fecha_liquidacion'] > fecha_30dias) & (df_ventas['fecha_liquidacion'] <= fecha_actual.strftime('%Y-%m-%d'))]
     df_31_60 = df_ventas[(df_ventas['fecha_liquidacion'] > fecha_60dias) & (df_ventas['fecha_liquidacion'] <= fecha_30dias)]
-    ventas_30 = df_ultimos_30.groupby(['cod_ruta', 'cod_articulo_magic'])['imp_netovta'].sum().reset_index().assign(mes="0_30")
-    ventas_60 = df_31_60.groupby(['cod_ruta', 'cod_articulo_magic'])['imp_netovta'].sum().reset_index().assign(mes="31_60")
+    ventas_30 = df_ultimos_30.groupby(['cod_ruta', 'cod_articulo_magic'])['imp_neto_vta_mn'].sum().reset_index().assign(mes="0_30")
+    ventas_60 = df_31_60.groupby(['cod_ruta', 'cod_articulo_magic'])['imp_neto_vta_mn'].sum().reset_index().assign(mes="31_60")
     df_grouped = pd.concat([ventas_30, ventas_60], ignore_index=True)
-    df_grouped = pd.pivot_table(df_grouped, values="imp_netovta", index=["cod_ruta", "cod_articulo_magic"], columns=["mes"], aggfunc="sum").reset_index().fillna(0)
+    df_grouped = pd.pivot_table(df_grouped, values="imp_neto_vta_mn", index=["cod_ruta", "cod_articulo_magic"], columns=["mes"], aggfunc="sum").reset_index().fillna(0)
     df_grouped["vp"] = ((df_grouped.get("0_30", 0) - df_grouped.get("31_60", 0)) / df_grouped.get("31_60", 1) * 100).fillna(-1).replace([np.inf, -np.inf], -1)
     df_grouped["flag_rank"] = df_grouped["vp"].apply(clasificar_valor).map({"S": 0, "M": 1, "B": 2})
     pan_rec["original_order"] = pan_rec.index
@@ -121,7 +121,7 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
 
 def aplicar_filtros_historia(pan_rec, df_ventas):
     """Reglas 5.-2 y 5.3"""
-    print("Aplicando filtros históricos...")
+    print("Aplicando filtros histÃ³ricos...")
 
     s3 = my_session.client("s3")
     objetos = s3.list_objects_v2(Bucket=S3_BUCKET_BACKUP, Prefix=S3_PREFIX_OUTPUT)
@@ -161,8 +161,8 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
 
 
 def calcular_metricas_y_ensamblar(pan_rec, df_ventas):
-    """Calcula irregularidad, métricas y aplica reglas finales."""
-    print("Calculando métricas y armando dataset final...")
+    """Calcula irregularidad, mÃ©tricas y aplica reglas finales."""
+    print("Calculando mÃ©tricas y armando dataset final...")
 
     maestro_prod = pd.read_csv(os.path.join(INPUT_DIR_LIMPIEZA, "EC_maestro_productos.csv"))
     with open(os.path.join(INPUT_DIR_LIMPIEZA, "mapeo_diccionario.json"), "r") as f:
@@ -218,7 +218,7 @@ def calcular_metricas_y_ensamblar(pan_rec, df_ventas):
     final_rec = final_rec.sort_values(["id_cliente", "peso"]).groupby("id_cliente").head(5)
     final_rec["marca_rec_rank"] = final_rec.groupby("id_cliente").cumcount() + 1
 
-    # Filtro por segmento estándar
+    # Filtro por segmento estÃ¡ndar
     limites_segmento = {"BLINDAR": 1, "MANTENER": 2, "DESARROLLAR": 3, "OPTIMIZAR": 4}
     final_rec = final_rec.groupby("id_cliente").apply(
         lambda g: g.head(limites_segmento.get(g["new_segment"].iloc[0], 5))
