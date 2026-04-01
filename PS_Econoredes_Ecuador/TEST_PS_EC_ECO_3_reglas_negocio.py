@@ -130,12 +130,20 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
         for obj in objetos["Contents"]:
             if obj["Key"].endswith(".csv") and "D_base_pedidos_" in obj["Key"]:
                 fecha_str = obj["Key"].split("_")[-1].replace(".csv", "")
-                fechas_recs.append(fecha_str)
+                if len(fecha_str) == 10 and fecha_str[4] == "-":
+                    fechas_recs.append(fecha_str)
 
     # Filter to last 14 days
     hoy = datetime.today().date()
     hace_14_dias = hoy - timedelta(days=14)
-    last_14_days = [f for f in fechas_recs if hace_14_dias <= datetime.strptime(f, "%Y-%m-%d").date() <= hoy]
+    last_14_days = []
+    for f in fechas_recs:
+        try:
+            fecha_date = datetime.strptime(f, "%Y-%m-%d").date()
+            if hace_14_dias <= fecha_date <= hoy:
+                last_14_days.append(f)
+        except ValueError:
+            continue
 
     last_14_recs = pd.DataFrame()
     for fecha in last_14_days:

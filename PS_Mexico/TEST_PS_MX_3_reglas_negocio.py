@@ -135,7 +135,8 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
             if obj["Key"].endswith(".csv") and "D_base_pedidos_" in obj["Key"]:
                 # Extraer fecha
                 fecha_str = obj["Key"].split("_")[-1].replace(".csv", "")
-                fechas_recs.append(fecha_str)
+                if len(fecha_str) == 10 and fecha_str[4] == "-":
+                    fechas_recs.append(fecha_str)
                 
     last_14_days = sorted(fechas_recs)[-14:]
     
