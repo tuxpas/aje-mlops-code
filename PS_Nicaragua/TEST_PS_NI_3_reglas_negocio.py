@@ -48,26 +48,28 @@ def clasificar_valor(x):
 def cargar_sku_disponible():
     """Carga el Excel de SKUs disponibles por compañía-sucursal desde S3."""
     fecha_manana = (datetime.now(tz_lima) + timedelta(days=1)).strftime("%d_%m_%Y")
-    base_path = f"s3://{BUCKET_SKU_EXCEL}/"
-    path_manana = f"{base_path}{PREFIX_SKU_EXCEL}{fecha_manana}.xlsx"
+    local_path = "/opt/ml/processing/PS_Carga_SKU.xlsx"
 
+    s3 = boto3.client('s3')
+
+    # 1. Intentar descargar archivo de mañana
+    key_manana = f"{PREFIX_SKU_EXCEL}{fecha_manana}.xlsx"
     try:
-        df = pd.read_excel(path_manana, sheet_name="Hoja1")
+        s3.download_file(BUCKET_SKU_EXCEL, key_manana, local_path)
         print(f"Cargado archivo de mañana: {fecha_manana}")
-        return df
+        return pd.read_excel(local_path, sheet_name="Hoja1")
     except Exception:
         print(f"No se encontró archivo para {fecha_manana}. Buscando el más reciente...")
 
-    s3 = boto3.client('s3')
+    # 2. Buscar el último archivo disponible con el patrón
     response = s3.list_objects_v2(Bucket=BUCKET_SKU_EXCEL, Prefix=PREFIX_SKU_EXCEL)
 
     if 'Contents' in response:
         archivos = [obj for obj in response['Contents'] if obj['Key'].endswith('.xlsx')]
         ultimo_archivo = sorted(archivos, key=lambda x: x['LastModified'], reverse=True)[0]
-        path_reciente = f"s3://{BUCKET_SKU_EXCEL}/{ultimo_archivo['Key']}"
-        df = pd.read_excel(path_reciente, sheet_name="Hoja1")
+        s3.download_file(BUCKET_SKU_EXCEL, ultimo_archivo['Key'], local_path)
         print(f"Cargado archivo más reciente: {ultimo_archivo['Key']}")
-        return df
+        return pd.read_excel(local_path, sheet_name="Hoja1")
     else:
         raise FileNotFoundError("No se encontraron archivos con el patrón PS_Carga_SKU_")
 
@@ -96,9 +98,8 @@ def paso_5_2_quitar_compras_recientes(pan_rec, df_ventas):
     cliente_rec_marca = pd.merge(pan_rec, marca_articulo, on="cod_articulo_magic", how="left")
     cliente_rec_marca["desc_categoria"] = cliente_rec_marca["desc_categoria"].str.strip()
 
-    last_2_weeks = pd.to_datetime(datetime.now(tz_lima)) - pd.DateOffset(days=14)
-    df_ventas["fecha_liquidacion"] = pd.to_datetime(df_ventas["fecha_liquidacion"])
-    df_ventas["fecha_liquidacion"] = df_ventas["fecha_liquidacion"].dt.tz_localize('America/Lima', nonexistent='NaT', ambiguous='NaT')
+    last_2_weeks = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
+    df_ventas["fecha_liquidacion"] = pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.strftime('%Y-%m-%d')
 
     df_quitar = df_ventas[df_ventas["fecha_liquidacion"] >= last_2_weeks][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
     cliente_rec_sin = cliente_rec_marca.merge(df_quitar, on=['id_cliente', 'cod_articulo_magic'], how='left', indicator=True)

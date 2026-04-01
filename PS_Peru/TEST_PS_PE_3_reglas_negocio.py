@@ -54,8 +54,8 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     print("Aplicando filtros de disponibilidad y stock...")
 
     # --- 5.-9 SKUs con ventas en los últimos 14 días ---
-    fecha_limite = fecha_actual - timedelta(days=14)
-    ventas_filtradas = df_ventas[pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.tz_localize('America/Lima', nonexistent='NaT', ambiguous='NaT') >= fecha_limite]
+    fecha_limite = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
+    ventas_filtradas = df_ventas[df_ventas["fecha_liquidacion"] >= fecha_limite]
     productos_por_ruta = ventas_filtradas.groupby("cod_ruta")["cod_articulo_magic"].unique().reset_index()
 
     pan_rec = pan_rec.merge(df_ventas[["id_cliente", "cod_ruta"]].drop_duplicates(), on="id_cliente", how="left")
@@ -158,8 +158,8 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
         df_combinado = pd.merge(pan_rec, last_14_recs, left_on=['id_cliente', 'cod_articulo_magic'], right_on=['id_cliente', 'Producto'], how='left', indicator=True)
         pan_rec = df_combinado[df_combinado['_merge'] == 'left_only'][["id_cliente", "cod_articulo_magic"]]
 
-    last_2_weeks = fecha_actual - timedelta(days=14)
-    df_ventas["fecha_liquidacion"] = pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.tz_localize('America/Lima', nonexistent='NaT', ambiguous='NaT')
+    last_2_weeks = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
+    df_ventas["fecha_liquidacion"] = pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.strftime('%Y-%m-%d')
     compras_recientes = df_ventas[df_ventas["fecha_liquidacion"] >= last_2_weeks][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
     pan_rec = pan_rec.merge(compras_recientes, on=['id_cliente', 'cod_articulo_magic'], how='left', indicator=True)
     pan_rec = pan_rec[pan_rec['_merge'] == 'left_only'].drop(columns=['_merge'])
