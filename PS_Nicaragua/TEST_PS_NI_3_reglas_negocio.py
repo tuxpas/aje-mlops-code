@@ -77,7 +77,7 @@ def cargar_sku_disponible():
 def paso_5_1_maestro_validacion(pan_rec):
     """5.1 Usar archivo maestro para no recomendar SKUs que no se deben a las rutas."""
     print("5.1 Aplicando validación de maestro de productos...")
-    pan_rec["id_cliente"] = "CAM|" + pan_rec["id_cliente"]
+    # id_cliente ya viene con prefijo CAM| del modelado
 
     s3_path_val = "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/maestro_productos_cam000"
     skus_val = wr.s3.read_csv(s3_path_val, sep=";", boto3_session=my_session)

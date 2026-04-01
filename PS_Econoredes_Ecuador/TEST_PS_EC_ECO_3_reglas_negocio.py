@@ -149,7 +149,7 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
     for fecha in last_14_days:
         s3_uri = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha}.csv"
         try:
-            df_temp = pd.read_csv(s3_uri, dtype={"Compania": str, "Cliente": str})
+            df_temp = wr.s3.read_csv(s3_uri, dtype={"Compania": str, "Cliente": str}, boto3_session=my_session)
             df_temp["id_cliente"] = 'EC|' + df_temp['Compania'] + '|' + df_temp['Cliente']
             df_temp = df_temp[df_temp["id_cliente"].isin(pan_rec["id_cliente"].unique())]
             last_14_recs = pd.concat([last_14_recs, df_temp], axis=0)

@@ -200,10 +200,10 @@ def extraer_datos():
 
     # Preparar llaves para cruce - id_cliente con prefijo PE
     pan_ventas["cod_compania"] = pan_ventas["cod_compania"].astype(str).apply(lambda x: str(int(x)).rjust(4, "0"))
-    pan_ventas["id_cliente"] = "PE|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(str)
+    pan_ventas["id_cliente"] = "PE|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(int).astype(str)
 
-    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(x).rjust(4, "0"))
-    pan_visitas["id_cliente"] = "PE|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(str)
+    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(int(float(x))).rjust(4, "0"))
+    pan_visitas["id_cliente"] = "PE|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(int).astype(str)
 
     # Filtrar visitas canal 2 (sin filtro de compañía, Perú tiene varias)
     pan_visitas = pan_visitas[pan_visitas.codigo_canal__c == 2].reset_index(drop=True)

@@ -136,10 +136,10 @@ def extraer_datos():
 
     # Format cod_compania using formatear_codigo (handles alphanumeric like E001)
     pan_ventas["cod_compania"] = pan_ventas["cod_compania"].apply(formatear_codigo)
-    pan_ventas["id_cliente"] = "EC|" + pan_ventas["cod_compania"].astype(str) + "|" + pan_ventas["cod_cliente"].astype(str)
+    pan_ventas["id_cliente"] = "EC|" + pan_ventas["cod_compania"].astype(str) + "|" + pan_ventas["cod_cliente"].astype(int).astype(str)
 
     pan_visitas["compania__c"] = pan_visitas["compania__c"].apply(formatear_codigo)
-    pan_visitas["id_cliente"] = "EC|" + pan_visitas["compania__c"].astype(str) + "|" + pan_visitas["codigo_cliente__c"].astype(str)
+    pan_visitas["id_cliente"] = "EC|" + pan_visitas["compania__c"].astype(str) + "|" + pan_visitas["codigo_cliente__c"].astype(int).astype(str)
 
     # Deduplicate visitas - sort by ultima_visita, keep last per codigo_unico__c
     pan_visitas = pan_visitas.sort_values(

@@ -141,10 +141,10 @@ def extraer_datos():
 
     # Preparar llaves para cruce - id_cliente con prefijo CAM
     pan_ventas["cod_compania"] = pan_ventas["cod_compania"].astype(str).apply(lambda x: str(int(x)).rjust(4, "0"))
-    pan_ventas["id_cliente"] = "CAM|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(str)
+    pan_ventas["id_cliente"] = "CAM|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(int).astype(str)
 
-    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(int(x)).rjust(4, "0"))
-    pan_visitas["id_cliente"] = "CAM|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(str)
+    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(int(float(x))).rjust(4, "0"))
+    pan_visitas["id_cliente"] = "CAM|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(int).astype(str)
 
     # Filtrar visitas canal 2 y compania 0096
     pan_visitas = pan_visitas[(pan_visitas["codigo_canal__c"] == 2) & (pan_visitas["compania__c"] == COD_COMPANIA)].reset_index(drop=True)

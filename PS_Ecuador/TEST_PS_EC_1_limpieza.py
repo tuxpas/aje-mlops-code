@@ -143,10 +143,10 @@ def extraer_datos():
 
     # Preparar llaves para cruce - id_cliente con prefijo EC
     pan_ventas["cod_compania"] = pan_ventas["cod_compania"].astype(str).apply(lambda x: str(int(x)).rjust(4, "0"))
-    pan_ventas["id_cliente"] = "EC|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(str)
+    pan_ventas["id_cliente"] = "EC|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(int).astype(str)
 
-    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(x).rjust(4, "0"))
-    pan_visitas["id_cliente"] = "EC|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(str)
+    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(int(float(x))).rjust(4, "0"))
+    pan_visitas["id_cliente"] = "EC|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(int).astype(str)
 
     # Última visita (Deduplicación)
     visita_default = (datetime.now(pytz.timezone("America/Lima")) - timedelta(days=7)).strftime("%Y-%m-%d")
