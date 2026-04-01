@@ -135,7 +135,7 @@ def extraer_datos():
     pan_ventas["cod_compania"] = pan_ventas["cod_compania"].astype(str).apply(lambda x: str(int(x)).rjust(4, "0"))
     pan_ventas["id_cliente"] = "CAM|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(int).astype(str)
 
-    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(int(float(x))).rjust(4, "0"))
+    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(int(float(x))).rjust(4, "0") if x.replace('.','',1).isdigit() else str(x).rjust(4, "0"))
     pan_visitas["id_cliente"] = "CAM|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(int).astype(str)
 
     # Filtrar visitas canal 2 y compania 0076

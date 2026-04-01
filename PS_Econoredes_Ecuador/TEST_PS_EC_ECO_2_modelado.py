@@ -111,10 +111,15 @@ def main():
 
         path_busqueda = os.path.join(INPUT_DIR, "**", "D_*_ventas.csv")
         archivos_rutas = glob.glob(path_busqueda, recursive=True)
+        if not archivos_rutas:
+            archivos_rutas = glob.glob(os.path.join(INPUT_DIR, "D_*_ventas.csv"))
         print(f"Ruta de búsqueda: {path_busqueda}")
         print(f"Archivos encontrados: {len(archivos_rutas)}")
 
         if not archivos_rutas:
+            print("No se encontraron archivos. Generando parquet vacío.")
+            pd.DataFrame(columns=["id_cliente", "cod_articulo_magic"]).to_parquet(os.path.join(OUTPUT_DIR, "D_rutas_rec.parquet"), index=False)
+            spark.stop()
             return
 
         lista_recomendaciones = []

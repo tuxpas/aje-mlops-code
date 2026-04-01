@@ -133,46 +133,51 @@ def als_training_job(spark, ruta_csv_path):
 
 def main():
     try:
-        print("Iniciando Modelado ALS (Modo Implícito Optimizado)...")
+        print("Iniciando Modelado ALS (México - Modo Implícito sin KMeans)...")
         spark = create_spark_session()
-        
+
         path_busqueda = os.path.join(INPUT_DIR, "**", "D_*_ventas.csv")
         archivos_rutas = glob.glob(path_busqueda, recursive=True)
-        
+        if not archivos_rutas:
+            archivos_rutas = glob.glob(os.path.join(INPUT_DIR, "D_*_ventas.csv"))
         print(f"Ruta de búsqueda: {path_busqueda}")
         print(f"Archivos encontrados: {len(archivos_rutas)}")
-        
         if not archivos_rutas:
+            print("No se encontraron archivos. Generando parquet vacío.")
+            pd.DataFrame(columns=["id_cliente", "cod_articulo_magic"]).to_parquet(os.path.join(OUTPUT_DIR, "D_rutas_rec.parquet"), index=False)
+            spark.stop()
             return
-    
+
         lista_recomendaciones = []
         for ruta_path in archivos_rutas:
             nombre_archivo = os.path.basename(ruta_path)
             print(f"Procesando ALS para: {nombre_archivo}...")
-            
+
             df_rec_ruta = als_training_job(spark, ruta_path)
-            
+
             if not df_rec_ruta.empty:
                 lista_recomendaciones.append(df_rec_ruta)
-    
+
         # Consolidar y guardar
         if lista_recomendaciones:
             print("Consolidando todas las recomendaciones...")
             df_final_recs = pd.concat(lista_recomendaciones, ignore_index=True)
             df_final_recs = df_final_recs.drop_duplicates()
-            
+
             ruta_salida = os.path.join(OUTPUT_DIR, "D_rutas_rec.parquet")
             df_final_recs.to_parquet(ruta_salida, index=False)
             print(f"Recomendaciones guardadas exitosamente en {ruta_salida}")
         else:
-            print("No se generaron recomendaciones.")
-    
+            print("No se generaron recomendaciones. Generando parquet vacío.")
+            pd.DataFrame(columns=["id_cliente", "cod_articulo_magic"]).to_parquet(os.path.join(OUTPUT_DIR, "D_rutas_rec.parquet"), index=False)
+
         spark.stop()
-        
+
     except Exception as e:
         print("!!! ERROR DETECTADO EN LA EJECUCIÓN !!!")
         print(traceback.format_exc())
-        raise e 
+        raise e
+ 
 
 
 if __name__ == "__main__":

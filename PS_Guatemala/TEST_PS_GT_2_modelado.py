@@ -138,10 +138,19 @@ def main():
         path_busqueda = os.path.join(INPUT_DIR, "**", "D_*_ventas.csv")
         archivos_rutas = glob.glob(path_busqueda, recursive=True)
 
+        # Fallback: buscar también directamente en INPUT_DIR sin recursión
+        if not archivos_rutas:
+            path_busqueda2 = os.path.join(INPUT_DIR, "D_*_ventas.csv")
+            archivos_rutas = glob.glob(path_busqueda2)
+            print(f"Fallback búsqueda directa: {path_busqueda2}")
+
         print(f"Ruta de búsqueda: {path_busqueda}")
         print(f"Archivos encontrados: {len(archivos_rutas)}")
 
         if not archivos_rutas:
+            print("No se encontraron archivos de rutas. Generando parquet vacío.")
+            pd.DataFrame(columns=["id_cliente", "cod_articulo_magic"]).to_parquet(os.path.join(OUTPUT_DIR, "D_rutas_rec.parquet"), index=False)
+            spark.stop()
             return
 
         lista_recomendaciones = []
@@ -164,7 +173,8 @@ def main():
             df_final_recs.to_parquet(ruta_salida, index=False)
             print(f"Recomendaciones guardadas exitosamente en {ruta_salida}")
         else:
-            print("No se generaron recomendaciones.")
+            print("No se generaron recomendaciones. Generando parquet vacío.")
+            pd.DataFrame(columns=["id_cliente", "cod_articulo_magic"]).to_parquet(os.path.join(OUTPUT_DIR, "D_rutas_rec.parquet"), index=False)
 
         spark.stop()
 
