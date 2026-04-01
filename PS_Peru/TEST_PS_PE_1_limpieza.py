@@ -224,6 +224,11 @@ def extraer_datos():
     # Segmentación
     mapping_segmento = {"S1": "BLINDAR", "S2": "DESARROLLAR", "S4": "MANTENER", "S5": "OPTIMIZAR"}
     df_merged["new_segment"] = df_merged["eje_potencial__c"].map(mapping_segmento).fillna("OPTIMIZAR")
+
+    # Renombrar DEPORADE a SPORADE
+    df_merged["desc_marca"] = df_merged["desc_marca"].str.strip()
+    df_merged["desc_marca"] = df_merged["desc_marca"].replace({"DEPORADE": "SPORADE"})
+
     df_merged["mes"] = pd.to_datetime(df_merged["fecha_liquidacion"]).dt.strftime("%Y-%m-01")
 
     return df_merged

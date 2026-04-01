@@ -90,9 +90,6 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     # --- Filtro especial: excluir SKU 608597 de rutas específicas ---
     pan_rec = pan_rec[~((pan_rec.cod_ruta.isin(RUTAS_EXCLUIR_608597)) & (pan_rec.cod_articulo_magic == 608597))]
 
-    # --- 5.-3 Quitar SKUs sin precio ---
-    pan_rec = pan_rec[~pan_rec["cod_articulo_magic"].isin(SKUS_SIN_PRECIO)].reset_index(drop=True)
-
     # --- 5.-5 Filtro STOCK (D_stock_pe.csv) ---
     stock = wr.s3.read_csv("s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/peru/D_stock_pe.csv", boto3_session=my_session)
     stock = stock.drop(columns=["Fecha", "Database"])
@@ -114,6 +111,20 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     pan_rec["cod_compania"] = pan_rec["cod_compania"].astype(str).str.zfill(4)
     pan_rec["cod_sucursal"] = pan_rec["cod_sucursal"].astype(str).str.zfill(2)
     pan_rec = pd.merge(pan_rec, df_stock, on=["cod_compania", "cod_sucursal", "cod_articulo_magic"], how="inner")
+
+    # --- 5.-4 Quitar SKUs del Excel LISTA SKUS - NN.xlsx ---
+    sagemaker_sess = boto3.Session(region_name="us-east-2")
+    sts = sagemaker_sess.client("sts")
+    account_id = sts.get_caller_identity()["Account"]
+    default_bucket = f"sagemaker-us-east-2-{account_id}"
+    excel_s3_path = f"s3://{default_bucket}/scripts/PE/LISTA SKUS - NN.xlsx"
+    excel_local = "/opt/ml/processing/LISTA_SKUS_NN.xlsx"
+    wr.s3.download(path=excel_s3_path, local_file=excel_local, boto3_session=my_session)
+    sku_con_precio = pd.read_excel(excel_local, sheet_name="Hoja1")
+    pan_rec = pan_rec[~pan_rec["cod_articulo_magic"].isin(sku_con_precio["CÓDIGO"].unique())].reset_index(drop=True)
+
+    # --- 5.-3 Quitar SKUs sin precio ---
+    pan_rec = pan_rec[~pan_rec["cod_articulo_magic"].isin(SKUS_SIN_PRECIO)].reset_index(drop=True)
 
     return pan_rec[["id_cliente", "cod_articulo_magic"]].drop_duplicates().reset_index(drop=True)
 
