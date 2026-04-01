@@ -19,24 +19,25 @@ from datetime import datetime, timedelta
 os.environ["AWS_DEFAULT_REGION"] = "us-east-2"
 my_session = boto3.Session(region_name="us-east-2")
 
-# --- CONFIGURACIÓN DE RUTAS SAGEMAKER ---
 INPUT_DIR_LIMPIEZA = "/opt/ml/processing/input/limpieza"
 INPUT_DIR_MODELADO = "/opt/ml/processing/input/modelado"
 
-# Bucket para outputs finales e históricos
 S3_BUCKET_BACKUP = "aje-analytics-ps-backup"
-S3_PREFIX_OUTPUT = "PS_Panama/Output/PS_todo_panama/"
-S3_PREFIX_OUTPUT_DATA = "PS_Panama/Output/PS_todo_panama_data/"
+S3_PREFIX_OUTPUT = "PS_Peru/Output/PS_piloto_v1/"
+S3_PREFIX_OUTPUT_DATA = "PS_Peru/Output/PS_data_piloto_v1/"
 
-# SKUs a excluir
-SKUS_SIN_PRECIO = [622402]
+# SKUs a excluir (lista larga específica de Perú)
+SKUS_SIN_PRECIO = list(set([
+    622908,622102,699373,622103,622672,699790,622841,623140,699423,622735,622192,622189,623130,699127,622396,608462,623557,
+    622838,621939,623566,622313,621994,622163,622391,622392,622393,622395,622630,699367,699892,622356,623854,699361,699366,
+    699550,619038,623872,621766,621804,622163,622356,622387,622390,622391,622392,622393,622394,622395,622396,622439,622783,
+    622841,623130,623150,623456,623753,698987,699346,699363,699367,699373,699425,699493,699494,623873,623875,624052,699868,
+    699494,623873,699927,622439,623875,623753,622313,699495,622387,622393,623087,622838,623557,623565,624239,624245,624285,622079
+]))
 
-# Rutas especiales con reglas de segmento diferentes
-RUTAS_ESPECIALES = [11103, 11205, 11301, 11401]
-REGLAS_RUTAS_ESPECIALES = {"BLINDAR": 2, "MANTENER": 2, "DESARROLLAR": 3, "OPTIMIZAR": 2}
-REGLAS_OTRAS_RUTAS = {"BLINDAR": 1, "MANTENER": 2, "DESARROLLAR": 3, "OPTIMIZAR": 4}
+# Filtro especial: excluir SKU 608597 de rutas específicas
+RUTAS_EXCLUIR_608597 = [14608, 14450, 14471, 12967, 12968, 12958, 12972]
 
-# ZONA HORARIA Y FECHAS
 tz_lima = pytz.timezone("America/Lima")
 fecha_actual = datetime.now(tz_lima)
 fecha_tomorrow = (fecha_actual + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -49,7 +50,7 @@ def clasificar_valor(x):
 
 
 def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
-    """Reglas 5.-9, 5.-8, 5.-7, 5.-5, 5.-3."""
+    """Reglas 5.-9, 5.-8, 5.-7, 5.-5, 5.-3 + filtros específicos de Perú."""
     print("Aplicando filtros de disponibilidad y stock...")
 
     # --- 5.-9 SKUs con ventas en los últimos 14 días ---
@@ -65,37 +66,35 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     # --- 5.-8 Subida, Bajada, Mantener ---
     fecha_30dias = (fecha_actual - timedelta(days=30)).strftime('%Y-%m-%d')
     fecha_60dias = (fecha_actual - timedelta(days=60)).strftime('%Y-%m-%d')
-
     df_ultimos_30 = df_ventas[(df_ventas['fecha_liquidacion'] > fecha_30dias) & (df_ventas['fecha_liquidacion'] <= fecha_actual.strftime('%Y-%m-%d'))]
     df_31_60 = df_ventas[(df_ventas['fecha_liquidacion'] > fecha_60dias) & (df_ventas['fecha_liquidacion'] <= fecha_30dias)]
-
     ventas_30 = df_ultimos_30.groupby(['cod_ruta', 'cod_articulo_magic'])['imp_netovta'].sum().reset_index().assign(mes="0_30")
     ventas_60 = df_31_60.groupby(['cod_ruta', 'cod_articulo_magic'])['imp_netovta'].sum().reset_index().assign(mes="31_60")
-
     df_grouped = pd.concat([ventas_30, ventas_60], ignore_index=True)
     df_grouped = pd.pivot_table(df_grouped, values="imp_netovta", index=["cod_ruta", "cod_articulo_magic"], columns=["mes"], aggfunc="sum").reset_index().fillna(0)
-
     df_grouped["vp"] = ((df_grouped.get("0_30", 0) - df_grouped.get("31_60", 0)) / df_grouped.get("31_60", 1) * 100).fillna(-1).replace([np.inf, -np.inf], -1)
     df_grouped["flag_rank"] = df_grouped["vp"].apply(clasificar_valor).map({"S": 0, "M": 1, "B": 2})
-
     pan_rec["original_order"] = pan_rec.index
     pan_rec = pd.merge(pan_rec, df_grouped[["cod_ruta", "cod_articulo_magic", "flag_rank"]], on=["cod_ruta", "cod_articulo_magic"], how="left")
     pan_rec["flag_rank"] = pan_rec["flag_rank"].fillna(3)
     pan_rec = pan_rec.sort_values(by=["id_cliente", "flag_rank", "original_order"]).reset_index(drop=True)
 
-    # --- 5.-7 Archivo de Validación (maestro_productos_cam000) ---
-    s3_path_val = "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/maestro_productos_cam000"
+    # --- 5.-7 Archivo de Validación (maestro_productos_peru000) ---
+    # Perú tiene varias compañías, NO se filtra por cod_compania
+    s3_path_val = "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/peru/maestro_productos_peru000"
     skus_val = wr.s3.read_csv(s3_path_val, sep=";", boto3_session=my_session)
-    skus_val = skus_val[skus_val.cod_compania == 96].copy()
     skus_val["cod_compania"] = skus_val["cod_compania"].astype(str).str.zfill(4)
-    skus_val["id_cliente"] = "CAM|" + skus_val["cod_compania"] + "|" + skus_val["cod_cliente"].astype(str)
+    skus_val["id_cliente"] = "PE|" + skus_val["cod_compania"] + "|" + skus_val["cod_cliente"].astype(str)
     pan_rec = pd.merge(pan_rec, skus_val[['cod_articulo_magic', 'id_cliente']].drop_duplicates(), on=["id_cliente", "cod_articulo_magic"], how="inner")
+
+    # --- Filtro especial: excluir SKU 608597 de rutas específicas ---
+    pan_rec = pan_rec[~((pan_rec.cod_ruta.isin(RUTAS_EXCLUIR_608597)) & (pan_rec.cod_articulo_magic == 608597))]
 
     # --- 5.-3 Quitar SKUs sin precio ---
     pan_rec = pan_rec[~pan_rec["cod_articulo_magic"].isin(SKUS_SIN_PRECIO)].reset_index(drop=True)
 
-    # --- 5.-5 Filtro STOCK (D_stock_pa.csv) ---
-    stock = wr.s3.read_csv("s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/D_stock_pa.csv", boto3_session=my_session)
+    # --- 5.-5 Filtro STOCK (D_stock_pe.csv) ---
+    stock = wr.s3.read_csv("s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/peru/D_stock_pe.csv", boto3_session=my_session)
     stock = stock.drop(columns=["Fecha", "Database"])
     stock.columns = ["cod_compania", "cod_sucursal", "cod_articulo_magic", "stock_cf"]
     stock["cod_compania"] = stock["cod_compania"].astype(str).str.zfill(4)
@@ -120,14 +119,12 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
 
 
 def aplicar_filtros_historia(pan_rec, df_ventas):
-    """Reglas 5.-2 (Evitar recomendaciones pasadas 14 días) y 5.3 (Evitar compras 14 días)"""
-    print("Aplicando filtros históricos de compras y recomendaciones...")
+    """Reglas 5.-2 y 5.3"""
+    print("Aplicando filtros históricos...")
 
-    # 5.-2 Histórico de recomendaciones desde S3
     s3 = my_session.client("s3")
     objetos = s3.list_objects_v2(Bucket=S3_BUCKET_BACKUP, Prefix=S3_PREFIX_OUTPUT)
     fechas_recs = []
-
     if "Contents" in objetos:
         for obj in objetos["Contents"]:
             if obj["Key"].endswith(".csv") and "D_base_pedidos_" in obj["Key"]:
@@ -135,13 +132,12 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
                 fechas_recs.append(fecha_str)
 
     last_14_days = sorted(fechas_recs)[-14:]
-
     last_14_recs = pd.DataFrame()
     for fecha in last_14_days:
         s3_uri = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha}.csv"
         try:
             df_temp = wr.s3.read_csv(s3_uri, dtype={"Compania": str, "Cliente": str}, boto3_session=my_session)
-            df_temp["id_cliente"] = 'CAM|' + df_temp['Compania'] + '|' + df_temp['Cliente']
+            df_temp["id_cliente"] = 'PE|' + df_temp['Compania'] + '|' + df_temp['Cliente']
             df_temp = df_temp[df_temp["id_cliente"].isin(pan_rec["id_cliente"].unique())]
             last_14_recs = pd.concat([last_14_recs, df_temp], axis=0)
         except Exception as e:
@@ -151,47 +147,40 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
         df_combinado = pd.merge(pan_rec, last_14_recs, left_on=['id_cliente', 'cod_articulo_magic'], right_on=['id_cliente', 'Producto'], how='left', indicator=True)
         pan_rec = df_combinado[df_combinado['_merge'] == 'left_only'][["id_cliente", "cod_articulo_magic"]]
 
-    # 5.3 Evitar compras de las ultimas 2 semanas
     last_2_weeks = fecha_actual - timedelta(days=14)
     df_ventas["fecha_liquidacion"] = pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.tz_localize('America/Lima', nonexistent='NaT', ambiguous='NaT')
     compras_recientes = df_ventas[df_ventas["fecha_liquidacion"] >= last_2_weeks][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
-
     pan_rec = pan_rec.merge(compras_recientes, on=['id_cliente', 'cod_articulo_magic'], how='left', indicator=True)
     pan_rec = pan_rec[pan_rec['_merge'] == 'left_only'].drop(columns=['_merge'])
-
     return pan_rec.reset_index(drop=True)
 
 
 def calcular_metricas_y_ensamblar(pan_rec, df_ventas):
-    """Calcula irregularidad, métricas de cliente y aplica reglas finales."""
+    """Calcula irregularidad, métricas y aplica reglas finales."""
     print("Calculando métricas y armando dataset final...")
 
-    maestro_prod = pd.read_csv(os.path.join(INPUT_DIR_LIMPIEZA, "D_pan_masterProd.csv"))
+    maestro_prod = pd.read_csv(os.path.join(INPUT_DIR_LIMPIEZA, "PE_maestro_productos.csv"))
     with open(os.path.join(INPUT_DIR_LIMPIEZA, "mapeo_diccionario.json"), "r") as f:
         mapeo_diccionario = json.load(f)
 
-    # 5.1 Marca de articulo
     marca_articulo = df_ventas[["desc_categoria", "cod_articulo_magic"]].drop_duplicates()
     cliente_rec_marca = pd.merge(pan_rec, marca_articulo, on="cod_articulo_magic", how="left")
     cliente_rec_marca["desc_categoria"] = cliente_rec_marca["desc_categoria"].str.strip()
-
     cods2 = cliente_rec_marca.groupby("id_cliente")["desc_categoria"].nunique().reset_index()
 
-    # Irregularidad (5.0)
+    # Irregularidad
     now_mes = pd.to_datetime(fecha_actual.strftime("%Y-%m-01"))
     lista_m12 = [now_mes - pd.DateOffset(months=12) + pd.DateOffset(months=i) for i in range(12)]
     lista_m6 = [now_mes - pd.DateOffset(months=6) + pd.DateOffset(months=i) for i in range(6)]
-
     temp_v = df_ventas[df_ventas["id_cliente"].isin(pan_rec["id_cliente"].unique())]
     qw = temp_v[["id_cliente", "mes"]].drop_duplicates().sort_values(["id_cliente", "mes"]).groupby("id_cliente").tail(12).reset_index(drop=True)
     qw["mes"] = pd.to_datetime(qw["mes"])
     qw["m12"] = qw["mes"].isin(lista_m12)
     qw["m6"] = qw["mes"].isin(lista_m6)
-
     cat_cliente = qw.groupby("id_cliente")[["m12", "m6"]].sum().reset_index()
     cat_cliente["categoria_cliente_2"] = np.where(cat_cliente["m6"] < 4, "Irregular", "Regular")
 
-    # Antiguedad (5.4)
+    # Antiguedad
     pan_ventas = df_ventas.rename(columns={"fecha_creacion_cliente": "fecha_creacion"}).copy()
     pan_ventas["fecha_creacion"] = pd.to_numeric(pan_ventas["fecha_creacion"], errors="coerce").fillna(0).astype(int)
     pan_ventas["fecha_creacion"] = pd.to_datetime(pan_ventas["fecha_creacion"], format="%Y%m%d", errors="coerce")
@@ -199,7 +188,7 @@ def calcular_metricas_y_ensamblar(pan_rec, df_ventas):
     pan_ventas["antiguedad"] = pan_ventas["fecha_creacion"].apply(lambda x: "nf" if pd.isnull(x) else ("new_client" if x >= hace_12_meses else "old_client"))
     pan_antiguedad = pan_ventas[["id_cliente", "fecha_creacion", "antiguedad"]].drop_duplicates().reset_index(drop=True)
 
-    # Juntar todo (5.5)
+    # Juntar todo
     final_rec = cliente_rec_marca.groupby(["id_cliente", "desc_categoria"]).first().reset_index()
     final_rec = pd.merge(final_rec, cods2, how="left", on="id_cliente")
     maestro_prod = maestro_prod[["cod_articulo_magic", "desc_articulo"]].drop_duplicates().groupby("cod_articulo_magic").first().reset_index()
@@ -218,54 +207,39 @@ def calcular_metricas_y_ensamblar(pan_rec, df_ventas):
     datos_sf = df_ventas.groupby(["id_cliente", "cod_compania", "cod_sucursal", "cod_cliente", "cod_ruta"])[["id_cliente", "cod_compania", "cod_sucursal", "cod_cliente", "cod_modulo", "cod_ruta"]].head(1).reset_index(drop=True)
     final_rec = pd.merge(final_rec, datos_sf, how="left", on="id_cliente")
 
-    # PESOS
     final_rec["peso"] = final_rec.apply(lambda row: mapeo_diccionario.get(row["desc_subgiro"], {}).get(row["marca_rec"], 5), axis=1)
     final_rec = final_rec.sort_values(["id_cliente", "peso"]).groupby("id_cliente").head(5)
     final_rec["marca_rec_rank"] = final_rec.groupby("id_cliente").cumcount() + 1
 
-    # 5.9 FILTRO POR SEGMENTO - con lógica de rutas especiales
-    def aplicar_head(grupo):
-        cod_ruta = grupo['cod_ruta'].iloc[0]
-        segmento = grupo['new_segment'].iloc[0]
-        if cod_ruta in RUTAS_ESPECIALES:
-            limite = REGLAS_RUTAS_ESPECIALES.get(segmento, len(grupo))
-        else:
-            limite = REGLAS_OTRAS_RUTAS.get(segmento, len(grupo))
-        return grupo.head(limite)
-
-    final_rec = (
-        final_rec.groupby(['cod_ruta', 'new_segment', 'id_cliente'], group_keys=False)
-        .apply(aplicar_head)
-    )
+    # Filtro por segmento estándar
+    limites_segmento = {"BLINDAR": 1, "MANTENER": 2, "DESARROLLAR": 3, "OPTIMIZAR": 4}
+    final_rec = final_rec.groupby("id_cliente").apply(
+        lambda g: g.head(limites_segmento.get(g["new_segment"].iloc[0], 5))
+    ).reset_index(drop=True)
 
     return final_rec
 
 
 def exportar_resultados(final_rec):
-    """Prepara y envía los archivos finales a S3."""
+    """Exporta resultados a S3."""
     print(f"Exportando resultados a S3 para la fecha {fecha_tomorrow}...")
 
-    # Data para D&A
     s3_path_da = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT_DATA}D_pan_recs_data_{fecha_tomorrow}_test.csv"
     wr.s3.to_csv(final_rec, s3_path_da, index=False, boto3_session=my_session)
 
-    # Data para Salesforce
     rec_sf = final_rec[["cod_compania", "cod_sucursal", "cod_cliente", "cod_modulo", "sku"]].copy()
-    rec_sf["Pais"] = "PA"
+    rec_sf["Pais"] = "PE"
     rec_sf["Cajas"] = int(1)
     rec_sf["Unidades"] = int(0)
     rec_sf["Fecha"] = fecha_tomorrow
-
     rec_sf = rec_sf[["Pais", "cod_compania", "cod_sucursal", "cod_cliente", "cod_modulo", "sku", "Cajas", "Unidades", "Fecha"]]
     rec_sf.columns = ["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha"]
-
     rec_sf["Compania"] = rec_sf["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
     rec_sf["Sucursal"] = rec_sf["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
 
     s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}_test.csv"
     wr.s3.to_csv(rec_sf, s3_path_sf, index=False, boto3_session=my_session)
 
-    print("Resumen de Exportación:")
     print("Total de clientes a recomendar:", rec_sf.Cliente.nunique())
     print("SKUs usados:", rec_sf.Producto.nunique())
     # Upload adicional al bucket de pedidos con formato de 12 columnas
@@ -273,16 +247,16 @@ def exportar_resultados(final_rec):
     rec_sf["ultFecha"] = ''
     rec_sf["Destacar"] = "true"
     rec_sf_orders = rec_sf[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
-    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos_test/base_pedidos_pa.csv"
+    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos_test/base_pedidos_pe.csv"
     wr.s3.to_csv(rec_sf_orders, s3_path_orders, index=False, boto3_session=my_session)
 
-    print(f"Archivos subidos exitosamente a S3 (D&A, Salesforce y Orders).")
+    print("Archivos subidos exitosamente a S3.")
 
 
 def main():
-    print("--- INICIANDO REGLAS DE NEGOCIO (Panamá) ---")
+    print("--- INICIANDO REGLAS DE NEGOCIO (Perú) ---")
 
-    ruta_ventas = os.path.join(INPUT_DIR_LIMPIEZA, "pan_ventas_manana.parquet")
+    ruta_ventas = os.path.join(INPUT_DIR_LIMPIEZA, "peru_ventas_manana.parquet")
     ruta_recs = os.path.join(INPUT_DIR_MODELADO, "D_rutas_rec.parquet")
 
     df_ventas = pd.read_parquet(ruta_ventas)
@@ -294,7 +268,6 @@ def main():
     exportar_resultados(final_rec)
 
     print("--- PROCESO FINALIZADO ---")
-
 
 if __name__ == "__main__":
     main()

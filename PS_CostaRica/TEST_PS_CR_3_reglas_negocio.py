@@ -266,7 +266,15 @@ def exportar_resultados(final_rec):
     print("Resumen de Exportación:")
     print("Total de clientes a recomendar:", rec_sf.Cliente.nunique())
     print("SKUs usados:", rec_sf.Producto.nunique())
-    print(f"Archivos subidos exitosamente a S3 (D&A y Salesforce).")
+    # Upload adicional al bucket de pedidos con formato de 12 columnas
+    rec_sf["tipoRecomendacion"] = rec_sf.groupby(["Pais", "Compania", "Sucursal", "Cliente"]).cumcount().apply(lambda x: f"PS{x+1}")
+    rec_sf["ultFecha"] = ''
+    rec_sf["Destacar"] = "true"
+    rec_sf_orders = rec_sf[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
+    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos_test/base_pedidos_cr.csv"
+    wr.s3.to_csv(rec_sf_orders, s3_path_orders, index=False, boto3_session=my_session)
+
+    print(f"Archivos subidos exitosamente a S3 (D&A, Salesforce y Orders).")
 
 
 def main():
