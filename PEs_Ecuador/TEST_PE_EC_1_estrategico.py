@@ -184,7 +184,7 @@ def exportar_y_concatenar(df_estrategico):
     print(f"Tipos de recomendación: {pedidos_concat.tipoRecomendacion.str[:2].value_counts().to_dict()}")
 
     # 4. Subir al bucket de orders
-    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos_test/base_pedidos_ec.csv"
+    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos/base_pedidos.csv"
     wr.s3.to_csv(pedidos_concat, s3_path_orders, index=False, boto3_session=my_session)
     print(f"Archivo concatenado subido a {s3_path_orders}")
 

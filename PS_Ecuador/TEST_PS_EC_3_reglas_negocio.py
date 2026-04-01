@@ -245,7 +245,7 @@ def exportar_resultados(final_rec):
     print(f"Exportando resultados a S3 para la fecha {fecha_tomorrow}...")
 
     # Data para D&A
-    s3_path_da = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT_DATA}D_pan_recs_data_{fecha_tomorrow}_test.csv"
+    s3_path_da = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT_DATA}D_pan_recs_data_{fecha_tomorrow}.csv"
     wr.s3.to_csv(final_rec, s3_path_da, index=False, boto3_session=my_session)
 
     # Data para Salesforce
@@ -261,7 +261,7 @@ def exportar_resultados(final_rec):
     rec_sf["Compania"] = rec_sf["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
     rec_sf["Sucursal"] = rec_sf["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
 
-    s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}_test.csv"
+    s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}.csv"
     wr.s3.to_csv(rec_sf, s3_path_sf, index=False, boto3_session=my_session)
 
     print("Resumen de Exportación:")
