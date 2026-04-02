@@ -147,10 +147,18 @@ def generar_metricas(final):
         recomendaciones=("Producto", "count"),
     ).reset_index()
 
-    return detalle, tipo_rec
+    # Resumen por País (sumando desde el detalle para evitar conteo incorrecto de clientes)
+    resumen_pais = detalle.groupby("Pais").agg(
+        clientes=("clientes", "sum"),
+        recomendaciones=("recomendaciones", "sum"),
+        skus_unicos=("skus_unicos", "max"),
+    ).reset_index()
+    resumen_pais["prom_prod_cliente"] = (resumen_pais["recomendaciones"] / resumen_pais["clientes"]).round(2)
+
+    return resumen_pais, detalle, tipo_rec
 
 
-def construir_html(detalle, tipo_rec):
+def construir_html(resumen_pais, detalle, tipo_rec):
     """Construye el cuerpo HTML del correo."""
 
     def df_to_html_table(df):
@@ -174,10 +182,13 @@ def construir_html(detalle, tipo_rec):
     <p>Fecha de recomendaciones: <b>{fecha_tomorrow}</b></p>
     <p>Generado automáticamente por el Pipeline de Pedido Sugerido.</p>
 
-    <h3>1. Detalle por País, Compañía y Sucursal</h3>
+    <h3>1. Resumen por País</h3>
+    {df_to_html_table(resumen_pais)}
+
+    <h3>2. Detalle por País, Compañía y Sucursal</h3>
     {df_to_html_table(detalle)}
 
-    <h3>2. Desglose por Tipo de Recomendación (PR/PS/PE)</h3>
+    <h3>3. Desglose por Tipo de Recomendación (PR/PS/PE)</h3>
     {df_to_html_table(tipo_rec)}
 
     <br>
@@ -230,10 +241,10 @@ def main():
     guardar_consolidado(final)
 
     # 3. Generar métricas
-    detalle, tipo_rec = generar_metricas(final)
+    resumen_pais, detalle, tipo_rec = generar_metricas(final)
 
     # 4. Construir HTML y enviar correo
-    html_body = construir_html(detalle, tipo_rec)
+    html_body = construir_html(resumen_pais, detalle, tipo_rec)
     enviar_correo(html_body)
 
     print("--- REPORTE FINALIZADO ---")
