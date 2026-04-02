@@ -142,10 +142,12 @@ def extraer_datos():
     pan_visitas["id_cliente"] = "EC|" + pan_visitas["compania__c"].astype(str) + "|" + pan_visitas["codigo_cliente__c"].astype(int).astype(str)
 
     # Deduplicate visitas - sort by ultima_visita, keep last per codigo_unico__c
-    pan_visitas = pan_visitas.sort_values(
-        by=["codigo_unico__c", "ultima_visita"], ascending=True, na_position="first"
-    )
-    pan_visitas = pan_visitas.drop_duplicates(subset="codigo_unico__c", keep="last")
+    # Deduplicar visitas: priorizar la fila que contenga el día de mañana
+    dia_actual = datetime.now(pytz.timezone("America/Lima")).weekday() + 1
+    dia_siguiente = 7 if dia_actual == 6 else (dia_actual + 1) % 7
+    pan_visitas["tiene_dia_manana"] = pan_visitas["dias_de_visita__c"].astype(str).apply(lambda x: 1 if str(dia_siguiente) in x.split(";") else 0)
+    pan_visitas = pan_visitas.sort_values(["id_cliente", "tiene_dia_manana", "ultima_visita"], ascending=[True, False, False]).groupby("id_cliente").head(1)
+    pan_visitas = pan_visitas.drop(columns=["tiene_dia_manana"])
 
     # Merge ventas and visitas
     cols_visitas = ["id_cliente", "dias_de_visita__c", "periodo_de_visita__c", "ultima_visita", "cod_ruta", "cod_modulo", "eje_potencial__c"]
