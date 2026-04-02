@@ -285,6 +285,8 @@ def paso_5_9_a_5_12_ensamblar_y_exportar(pan_rec, df_ventas):
     rec_sf["ultFecha"] = ''
     rec_sf["Destacar"] = "true"
     rec_sf_orders = rec_sf[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
+    rec_sf_orders["Compania"] = rec_sf_orders["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
+    rec_sf_orders["Sucursal"] = rec_sf_orders["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
     s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos/base_pedidos.csv"
     wr.s3.to_csv(rec_sf_orders, s3_path_orders, index=False, boto3_session=my_session)
 

@@ -57,8 +57,8 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     print("Aplicando filtros de disponibilidad y stock...")
 
     # --- 5.-9 SKUs con ventas en los últimos 14 días ---
-    fecha_limite = fecha_actual - timedelta(days=14)
-    ventas_filtradas = df_ventas[pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.tz_localize('America/Lima', nonexistent='NaT', ambiguous='NaT') >= fecha_limite]
+    fecha_limite = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
+    ventas_filtradas = df_ventas[df_ventas["fecha_liquidacion"] >= fecha_limite]
     productos_por_ruta = ventas_filtradas.groupby("cod_ruta")["cod_articulo_magic"].unique().reset_index()
 
     pan_rec = pan_rec.merge(df_ventas[["id_cliente", "cod_ruta"]].drop_duplicates(), on="id_cliente", how="left")
@@ -137,7 +137,8 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
         for obj in objetos["Contents"]:
             if obj["Key"].endswith(".csv") and "D_base_pedidos_" in obj["Key"]:
                 fecha_str = obj["Key"].split("_")[-1].replace(".csv", "")
-                fechas_recs.append(fecha_str)
+                if len(fecha_str) == 10 and fecha_str[4] == "-":
+                    fechas_recs.append(fecha_str)
 
     last_14_days = sorted(fechas_recs)[-14:]
 
@@ -157,8 +158,8 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
         pan_rec = df_combinado[df_combinado['_merge'] == 'left_only'][["id_cliente", "cod_articulo_magic"]]
 
     # 5.3 Evitar compras de las ultimas 2 semanas
-    last_2_weeks = fecha_actual - timedelta(days=14)
-    df_ventas["fecha_liquidacion"] = pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.tz_localize('America/Lima', nonexistent='NaT', ambiguous='NaT')
+    last_2_weeks = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
+    df_ventas["fecha_liquidacion"] = pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.strftime('%Y-%m-%d')
     compras_recientes = df_ventas[df_ventas["fecha_liquidacion"] >= last_2_weeks][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
 
     pan_rec = pan_rec.merge(compras_recientes, on=['id_cliente', 'cod_articulo_magic'], how='left', indicator=True)
@@ -244,7 +245,7 @@ def exportar_resultados(final_rec):
     print(f"Exportando resultados a S3 para la fecha {fecha_tomorrow}...")
 
     # Data para D&A
-    s3_path_da = f"s3://{S3_BUCKET_BACKUP}/PS_CostaRica/Output/PS_data_piloto_v1/D_pan_recs_data_{fecha_tomorrow}_test.csv"
+    s3_path_da = f"s3://{S3_BUCKET_BACKUP}/PS_CostaRica/Output/PS_data_piloto_v1/D_pan_recs_data_{fecha_tomorrow}.csv"
     wr.s3.to_csv(final_rec, s3_path_da, index=False, boto3_session=my_session)
 
     # Data para Salesforce
@@ -260,13 +261,23 @@ def exportar_resultados(final_rec):
     rec_sf["Compania"] = rec_sf["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
     rec_sf["Sucursal"] = rec_sf["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
 
-    s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}_test.csv"
+    s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}.csv"
     wr.s3.to_csv(rec_sf, s3_path_sf, index=False, boto3_session=my_session)
 
     print("Resumen de Exportación:")
     print("Total de clientes a recomendar:", rec_sf.Cliente.nunique())
     print("SKUs usados:", rec_sf.Producto.nunique())
-    print(f"Archivos subidos exitosamente a S3 (D&A y Salesforce).")
+    # Upload adicional al bucket de pedidos con formato de 12 columnas
+    rec_sf["tipoRecomendacion"] = rec_sf.groupby(["Pais", "Compania", "Sucursal", "Cliente"]).cumcount().apply(lambda x: f"PS{x+1}")
+    rec_sf["ultFecha"] = ''
+    rec_sf["Destacar"] = "true"
+    rec_sf_orders = rec_sf[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
+    rec_sf_orders["Compania"] = rec_sf_orders["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
+    rec_sf_orders["Sucursal"] = rec_sf_orders["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
+    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos/base_pedidos.csv"
+    wr.s3.to_csv(rec_sf_orders, s3_path_orders, index=False, boto3_session=my_session)
+
+    print(f"Archivos subidos exitosamente a S3 (D&A, Salesforce y Orders).")
 
 
 def main():

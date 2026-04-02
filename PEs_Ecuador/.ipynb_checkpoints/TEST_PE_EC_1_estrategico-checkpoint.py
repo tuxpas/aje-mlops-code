@@ -183,8 +183,12 @@ def exportar_y_concatenar(df_estrategico):
     print(f"Total concatenado: {pedidos_concat.shape[0]} filas")
     print(f"Tipos de recomendación: {pedidos_concat.tipoRecomendacion.str[:2].value_counts().to_dict()}")
 
+    pedidos_concat = pedidos_concat[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
+    pedidos_concat["Compania"] = pedidos_concat["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
+    pedidos_concat["Sucursal"] = pedidos_concat["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
+
     # 4. Subir al bucket de orders
-    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos_test/base_pedidos_ec.csv"
+    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos/base_pedidos.csv"
     wr.s3.to_csv(pedidos_concat, s3_path_orders, index=False, boto3_session=my_session)
     print(f"Archivo concatenado subido a {s3_path_orders}")
 
