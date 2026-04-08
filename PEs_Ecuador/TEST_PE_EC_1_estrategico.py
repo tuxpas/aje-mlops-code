@@ -136,61 +136,14 @@ def excluir_recurrente_y_sugerido(df_final):
 
 
 def exportar_y_concatenar(df_estrategico):
-    """Guarda backup de estratégico, concatena los 3 pedidos y sube al bucket de orders."""
+    """Guarda backup de estratégico."""
     print("Exportando resultados...")
 
-    # 1. Guardar backup de estratégico
+    # Guardar backup de estratégico
     s3_path_backup = f"s3://{S3_BUCKET_BACKUP}/Pedido_Estrategico/Ecuador/Output/estr_base_pedidos_{FECHA_REC}.csv"
     wr.s3.to_csv(df_estrategico, s3_path_backup, index=False, boto3_session=my_session)
     print(f"Backup estratégico guardado en {s3_path_backup}")
-
-    # 2. Leer los 3 pedidos para concatenar
-    # Recurrente
-    try:
-        pr = wr.s3.read_csv(
-            f"s3://{S3_BUCKET_BACKUP}/Pedido_Recurrente/Ecuador/Output/recu_base_pedidos_{FECHA_REC}.csv",
-            boto3_session=my_session
-        )
-        pr = pr[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
-        print(f"Recurrente: {pr.shape[0]} filas")
-    except Exception as e:
-        print(f"No se pudo leer Recurrente: {e}")
-        pr = pd.DataFrame()
-
-    # Sugerido
-    try:
-        ps = wr.s3.read_csv(
-            f"s3://{S3_BUCKET_BACKUP}/PS_Ecuador/Output/PS_piloto_v1/D_base_pedidos_{FECHA_REC}.csv",
-            boto3_session=my_session
-        )
-        # Asegurar que tenga las 12 columnas
-        if "tipoRecomendacion" not in ps.columns:
-            ps["tipoRecomendacion"] = ps.groupby(["Pais", "Compania", "Sucursal", "Cliente"]).cumcount().apply(lambda x: f"PS{x+1}")
-            ps["ultFecha"] = ''
-            ps["Destacar"] = "true"
-        ps = ps[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
-        print(f"Sugerido: {ps.shape[0]} filas")
-    except Exception as e:
-        print(f"No se pudo leer Sugerido: {e}")
-        ps = pd.DataFrame()
-
-    # Estratégico (ya tiene las 12 columnas)
-    pe = df_estrategico[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
-    print(f"Estratégico: {pe.shape[0]} filas")
-
-    # 3. Concatenar los 3 pedidos
-    pedidos_concat = pd.concat([pr, ps, pe], ignore_index=True)
-    print(f"Total concatenado: {pedidos_concat.shape[0]} filas")
-    print(f"Tipos de recomendación: {pedidos_concat.tipoRecomendacion.str[:2].value_counts().to_dict()}")
-
-    pedidos_concat = pedidos_concat[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
-    pedidos_concat["Compania"] = pedidos_concat["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
-    pedidos_concat["Sucursal"] = pedidos_concat["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
-
-    # 4. Subir al bucket de orders
-    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos/base_pedidos.csv"
-    wr.s3.to_csv(pedidos_concat, s3_path_orders, index=False, boto3_session=my_session)
-    print(f"Archivo concatenado subido a {s3_path_orders}")
+    print(f"Estratégico: {df_estrategico.shape[0]} filas, {df_estrategico.Cliente.nunique()} clientes")
 
 
 def main():

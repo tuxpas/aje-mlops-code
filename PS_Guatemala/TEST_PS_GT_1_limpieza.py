@@ -178,34 +178,13 @@ def extraer_datos():
 
 
 def filtrar_visitas_manana(df):
-    """Filtra el DataFrame para quedarse solo con los clientes que tienen visita programada para mañana."""
-    print(f"  Input shape: {df.shape}")
-    data_test = df[["id_cliente", "dias_de_visita__c", "periodo_de_visita__c", "ultima_visita"]].drop_duplicates().reset_index(drop=True)
-    data_test["ultima_visita"] = pd.to_datetime(data_test["ultima_visita"], format="%Y-%m-%d")
-
-    fecha_actual_dt = datetime.now()
-    data_test["dias_pasados"] = (fecha_actual_dt - data_test["ultima_visita"]).dt.days
-
+    """Filtra clientes con visita programada para mañana."""
     dia_actual = datetime.now(pytz.timezone("America/Lima")).weekday() + 1
     dia_siguiente = 7 if dia_actual == 6 else (dia_actual + 1) % 7
-    print(f"  dia_actual: {dia_actual}, dia_siguiente: {dia_siguiente}")
 
-    clientes_a_visitar_manana = data_test[
-        data_test["dias_de_visita__c"].astype(str).apply(lambda x: str(dia_siguiente) in x.split(";"))
+    df_final = df[
+        df["dias_de_visita__c"].astype(str).apply(lambda x: str(dia_siguiente) in x.split(";"))
     ].reset_index(drop=True)
-    print(f"  Clientes con dia_siguiente={dia_siguiente}: {clientes_a_visitar_manana.shape[0]}")
-    print(f"  Periodos: {clientes_a_visitar_manana['periodo_de_visita__c'].value_counts().to_dict()}")
-
-    condicion_f1 = clientes_a_visitar_manana["periodo_de_visita__c"] == "F1"
-    condicion_f2 = (clientes_a_visitar_manana["periodo_de_visita__c"] == "F2") & (clientes_a_visitar_manana["dias_pasados"] > 13)
-    condicion_f3 = (clientes_a_visitar_manana["periodo_de_visita__c"] == "F3") & (clientes_a_visitar_manana["dias_pasados"] > 20)
-    condicion_f4 = (clientes_a_visitar_manana["periodo_de_visita__c"] == "F4") & (clientes_a_visitar_manana["dias_pasados"] > 27)
-
-    clientes_a_visitar_manana = clientes_a_visitar_manana[condicion_f1 | condicion_f2 | condicion_f3 | condicion_f4]
-    print(f"  Clientes después de filtro F1-F4: {clientes_a_visitar_manana.shape[0]}")
-
-    df_final = df[df["id_cliente"].isin(clientes_a_visitar_manana["id_cliente"])].reset_index(drop=True)
-    print(f"  Output shape: {df_final.shape}")
     return df_final
 
 

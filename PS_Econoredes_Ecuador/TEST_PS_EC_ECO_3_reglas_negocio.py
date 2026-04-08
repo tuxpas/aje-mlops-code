@@ -1,4 +1,4 @@
-﻿import subprocess
+import subprocess
 import sys
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
@@ -53,7 +53,7 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
     """Reglas 5.-9, 5.-8, 5.-5, 5.-3. NO 5.-7 maestro validation for Ecuador Econoredes."""
     print("Aplicando filtros de disponibilidad y stock...")
 
-    # --- 5.-9 SKUs con ventas en los Ãºltimos 14 dÃ­as ---
+    # --- 5.-9 SKUs con ventas en los últimos 14 días ---
     fecha_limite = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
     ventas_filtradas = df_ventas[pd.to_datetime(df_ventas["fecha_liquidacion"]) >= fecha_limite]
     productos_por_ruta = ventas_filtradas.groupby("cod_ruta")["cod_articulo_magic"].unique().reset_index()
@@ -121,7 +121,7 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas):
 
 def aplicar_filtros_historia(pan_rec, df_ventas):
     """Reglas 5.-2 y 5.3"""
-    print("Aplicando filtros histÃ³ricos...")
+    print("Aplicando filtros históricos...")
 
     s3 = my_session.client("s3")
     objetos = s3.list_objects_v2(Bucket=S3_BUCKET_BACKUP, Prefix=S3_PREFIX_OUTPUT)
@@ -169,8 +169,8 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
 
 
 def calcular_metricas_y_ensamblar(pan_rec, df_ventas):
-    """Calcula irregularidad, mÃ©tricas y aplica reglas finales."""
-    print("Calculando mÃ©tricas y armando dataset final...")
+    """Calcula irregularidad, métricas y aplica reglas finales."""
+    print("Calculando métricas y armando dataset final...")
 
     maestro_prod = pd.read_csv(os.path.join(INPUT_DIR_LIMPIEZA, "EC_maestro_productos.csv"))
     with open(os.path.join(INPUT_DIR_LIMPIEZA, "mapeo_diccionario.json"), "r") as f:
@@ -226,7 +226,7 @@ def calcular_metricas_y_ensamblar(pan_rec, df_ventas):
     final_rec = final_rec.sort_values(["id_cliente", "peso"]).groupby("id_cliente").head(5)
     final_rec["marca_rec_rank"] = final_rec.groupby("id_cliente").cumcount() + 1
 
-    # Filtro por segmento estÃ¡ndar
+    # Filtro por segmento estándar
     limites_segmento = {"BLINDAR": 1, "MANTENER": 2, "DESARROLLAR": 3, "OPTIMIZAR": 4}
     final_rec = final_rec.groupby("id_cliente").apply(
         lambda g: g.head(limites_segmento.get(g["new_segment"].iloc[0], 5))
@@ -274,10 +274,6 @@ def exportar_resultados(final_rec, df_ventas):
 
     s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}.csv"
     wr.s3.to_csv(rec_sf, s3_path_sf, index=False, boto3_session=my_session)
-
-    # --- EXTRA UPLOAD: to aje-prd-pedido-sugerido-orders-s3 (PE path is correct per spec) ---
-    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos/base_pedidos.csv"
-    wr.s3.to_csv(rec_sf, s3_path_orders, index=False, boto3_session=my_session)
 
     print("Total de clientes a recomendar:", rec_sf.Cliente.nunique())
     print("SKUs usados:", rec_sf.Producto.nunique())

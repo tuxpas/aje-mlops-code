@@ -240,6 +240,11 @@ def main():
     # 2. Guardar consolidado
     guardar_consolidado(final)
 
+    # 2.5 Subir consolidado al bucket de orders (centralizado)
+    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos/base_pedidos.csv"
+    wr.s3.to_csv(final, s3_path_orders, index=False, boto3_session=my_session)
+    print(f"Consolidado subido a {s3_path_orders}")
+
     # 3. Generar métricas
     resumen_pais, detalle, tipo_rec = generar_metricas(final)
 

@@ -257,23 +257,18 @@ def exportar_resultados(final_rec):
     rec_sf["Compania"] = rec_sf["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
     rec_sf["Sucursal"] = rec_sf["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
 
+    rec_sf["tipoRecomendacion"] = rec_sf.groupby(["Pais", "Compania", "Sucursal", "Cliente"]).cumcount().apply(lambda x: f"PS{x+1}")
+    rec_sf["ultFecha"] = ''
+    rec_sf["Destacar"] = "true"
+
     s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}.csv"
     wr.s3.to_csv(rec_sf, s3_path_sf, index=False, boto3_session=my_session)
     
     print("Resumen de Exportación:")
     print("Total de clientes a recomendar:", rec_sf.Cliente.nunique())
     print("SKUs usados:", rec_sf.Producto.nunique())
-    # Upload adicional al bucket de pedidos con formato de 12 columnas
-    rec_sf["tipoRecomendacion"] = rec_sf.groupby(["Pais", "Compania", "Sucursal", "Cliente"]).cumcount().apply(lambda x: f"PS{x+1}")
-    rec_sf["ultFecha"] = ''
-    rec_sf["Destacar"] = "true"
-    rec_sf_orders = rec_sf[["Pais", "Compania", "Sucursal", "Cliente", "Modulo", "Producto", "Cajas", "Unidades", "Fecha", "tipoRecomendacion", "ultFecha", "Destacar"]]
-    rec_sf_orders["Compania"] = rec_sf_orders["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
-    rec_sf_orders["Sucursal"] = rec_sf_orders["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
-    s3_path_orders = "s3://aje-prd-pedido-sugerido-orders-s3/PE/pedidos/base_pedidos.csv"
-    wr.s3.to_csv(rec_sf_orders, s3_path_orders, index=False, boto3_session=my_session)
 
-    print(f"Archivos subidos exitosamente a S3 (D&A, Salesforce y Orders).")
+    print(f"Archivos subidos exitosamente a S3 (D&A, Salesforce).")
 
 
 def main():
