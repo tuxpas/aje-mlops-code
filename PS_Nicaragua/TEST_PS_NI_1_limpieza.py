@@ -129,7 +129,7 @@ def extraer_datos():
 
     # Backup de visitas diario en S3
     formatted_date = datetime.now(pytz.timezone("America/Lima")).strftime("%Y-%m-%d")
-    # wr.s3.to_csv(pan_visitas, f's3://aje-analytics-ps-backup/PS_Nicaragua/Input/visitas_cam000_{formatted_date}.csv', index=False, boto3_session=my_session)
+    wr.s3.to_csv(pan_visitas, f's3://aje-analytics-ps-backup/PS_Nicaragua/Input/visitas_cam000_{formatted_date}.csv', index=False, boto3_session=my_session)
 
     # Preparar llaves para cruce - id_cliente con prefijo CAM
     pan_ventas["cod_compania"] = pan_ventas["cod_compania"].astype(str).apply(lambda x: str(int(x)).rjust(4, "0"))

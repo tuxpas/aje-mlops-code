@@ -120,7 +120,7 @@ def extraer_datos():
 
     # Backup de visitas diario en S3
     formatted_date = datetime.now(pytz.timezone("America/Lima")).strftime("%Y-%m-%d")
-    # wr.s3.to_csv(pan_visitas, f's3://aje-analytics-ps-backup/PS_Mexico/Input/visitas_mexico000_{formatted_date}.csv', index=False, boto3_session=my_session)
+    wr.s3.to_csv(pan_visitas, f's3://aje-analytics-ps-backup/PS_Mexico/Input/visitas_mexico000_{formatted_date}.csv', index=False, boto3_session=my_session)
 
     # Preparar llaves para cruce
     pan_visitas = pan_visitas.rename(columns={'sucursal__c': 'cod_sucursal'})

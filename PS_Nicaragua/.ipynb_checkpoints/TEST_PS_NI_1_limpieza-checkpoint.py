@@ -129,14 +129,14 @@ def extraer_datos():
 
     # Backup de visitas diario en S3
     formatted_date = datetime.now(pytz.timezone("America/Lima")).strftime("%Y-%m-%d")
-    # wr.s3.to_csv(pan_visitas, f's3://aje-analytics-ps-backup/PS_Nicaragua/Input/visitas_cam000_{formatted_date}.csv', index=False, boto3_session=my_session)
+    wr.s3.to_csv(pan_visitas, f's3://aje-analytics-ps-backup/PS_Nicaragua/Input/visitas_cam000_{formatted_date}.csv', index=False, boto3_session=my_session)
 
     # Preparar llaves para cruce - id_cliente con prefijo CAM
     pan_ventas["cod_compania"] = pan_ventas["cod_compania"].astype(str).apply(lambda x: str(int(x)).rjust(4, "0"))
-    pan_ventas["id_cliente"] = "CAM|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(str)
+    pan_ventas["id_cliente"] = "CAM|" + pan_ventas["cod_compania"] + "|" + pan_ventas["cod_cliente"].astype(int).astype(str)
 
-    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(x).rjust(4, "0"))
-    pan_visitas["id_cliente"] = "CAM|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(str)
+    pan_visitas["compania__c"] = pan_visitas["compania__c"].astype(str).apply(lambda x: str(int(float(x))).rjust(4, "0") if x.replace('.','',1).isdigit() else str(x).rjust(4, "0"))
+    pan_visitas["id_cliente"] = "CAM|" + pan_visitas["compania__c"] + "|" + pan_visitas["codigo_cliente__c"].astype(int).astype(str)
 
     # Filtrar visitas canal 2 y compania 0081
     pan_visitas = pan_visitas[(pan_visitas["codigo_canal__c"] == 2) & (pan_visitas["compania__c"] == COD_COMPANIA)].reset_index(drop=True)
@@ -144,7 +144,13 @@ def extraer_datos():
     # Última visita (Deduplicación)
     visita_default = (datetime.now(pytz.timezone("America/Lima")) - timedelta(days=7)).strftime("%Y-%m-%d")
     pan_visitas["ultima_visita"] = pan_visitas["ultima_visita"].fillna(visita_default)
-    pan_visitas = pan_visitas.sort_values(["id_cliente", "ultima_visita"], ascending=False).groupby("id_cliente").head(1)
+
+    # Deduplicar visitas: priorizar la fila que contenga el día de mañana
+    dia_actual = datetime.now(pytz.timezone("America/Lima")).weekday() + 1
+    dia_siguiente = 7 if dia_actual == 6 else (dia_actual + 1) % 7
+    pan_visitas["tiene_dia_manana"] = pan_visitas["dias_de_visita__c"].astype(str).apply(lambda x: 1 if str(dia_siguiente) in x.split(";") else 0)
+    pan_visitas = pan_visitas.sort_values(["id_cliente", "tiene_dia_manana", "ultima_visita"], ascending=[True, False, False]).groupby("id_cliente").head(1)
+    pan_visitas = pan_visitas.drop(columns=["tiene_dia_manana"])
 
     # Cruce Ventas y Visitas
     cols_visitas = ["id_cliente", "dias_de_visita__c", "periodo_de_visita__c", "ultima_visita", "cod_ruta", "cod_modulo", "eje_potencial__c"]
