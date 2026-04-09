@@ -141,7 +141,7 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
                 if len(fecha_str) == 10 and fecha_str[4] == "-":
                     fechas_recs.append(fecha_str)
 
-    last_14_days = sorted(fechas_recs)[-14:]
+    last_14_days = [f for f in sorted(fechas_recs) if f != fecha_tomorrow][-14:]
 
     last_14_recs = pd.DataFrame()
     for fecha in last_14_days:
@@ -156,7 +156,9 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
 
     if not last_14_recs.empty:
         df_combinado = pd.merge(pan_rec, last_14_recs, left_on=['id_cliente', 'cod_articulo_magic'], right_on=['id_cliente', 'Producto'], how='left', indicator=True)
-        pan_rec = df_combinado[df_combinado['_merge'] == 'left_only'][["id_cliente", "cod_articulo_magic"]]
+        df_unicos = df_combinado[df_combinado['_merge'] == 'left_only'][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
+        df_coinciden = df_combinado[df_combinado['_merge'] == 'both'][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
+        pan_rec = pd.concat([df_unicos, df_coinciden], ignore_index=True)
 
     # 5.3 Evitar compras de las ultimas 2 semanas
     last_2_weeks = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
@@ -261,6 +263,10 @@ def exportar_resultados(final_rec):
 
     rec_sf["Compania"] = rec_sf["Compania"].apply(lambda x: str(int(x)).rjust(4, "0"))
     rec_sf["Sucursal"] = rec_sf["Sucursal"].apply(lambda x: str(int(x)).rjust(2, "0"))
+
+    rec_sf["tipoRecomendacion"] = rec_sf.groupby(["Pais", "Compania", "Sucursal", "Cliente"]).cumcount().apply(lambda x: f"PS{x+1}")
+    rec_sf["ultFecha"] = ''
+    rec_sf["Destacar"] = "true"
 
     s3_path_sf = f"s3://{S3_BUCKET_BACKUP}/{S3_PREFIX_OUTPUT}D_base_pedidos_{fecha_tomorrow}.csv"
     wr.s3.to_csv(rec_sf, s3_path_sf, index=False, boto3_session=my_session)

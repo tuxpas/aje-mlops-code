@@ -175,7 +175,7 @@ def paso_5_7_despriorizar_historico(pan_rec):
                 if len(fecha_str) == 10 and fecha_str[4] == "-":
                     fechas_recs.append(fecha_str)
 
-    last_14_days = sorted(fechas_recs)[-14:]
+    last_14_days = [f for f in sorted(fechas_recs) if f != fecha_tomorrow][-14:]
 
     if len(last_14_days) > 0:
         last_recs = pd.DataFrame()
@@ -194,9 +194,9 @@ def paso_5_7_despriorizar_historico(pan_rec):
             df_combinado = pd.merge(pan_rec, last_recs, left_on=['id_cliente', 'cod_articulo_magic'],
                                      right_on=['id_cliente', 'Producto'], how='left', indicator=True)
             # Únicos (no recomendados antes) van primero
-            df_unicos = df_combinado[df_combinado["_merge"] == "left_only"][["id_cliente", "cod_articulo_magic"]]
+            df_unicos = df_combinado[df_combinado["_merge"] == "left_only"][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
             # Coincidentes (ya recomendados) van al final (despriorizar, NO eliminar)
-            df_coinciden = df_combinado[df_combinado["_merge"] == "both"][["id_cliente", "cod_articulo_magic"]]
+            df_coinciden = df_combinado[df_combinado["_merge"] == "both"][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
             pan_rec = pd.concat([df_unicos, df_coinciden], ignore_index=True)
     else:
         print("No hay historial de recomendaciones.")

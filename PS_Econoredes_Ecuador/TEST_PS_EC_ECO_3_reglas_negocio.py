@@ -133,17 +133,7 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
                 if len(fecha_str) == 10 and fecha_str[4] == "-":
                     fechas_recs.append(fecha_str)
 
-    # Filter to last 14 days
-    hoy = datetime.today().date()
-    hace_14_dias = hoy - timedelta(days=14)
-    last_14_days = []
-    for f in fechas_recs:
-        try:
-            fecha_date = datetime.strptime(f, "%Y-%m-%d").date()
-            if hace_14_dias <= fecha_date <= hoy:
-                last_14_days.append(f)
-        except ValueError:
-            continue
+    last_14_days = [f for f in sorted(fechas_recs) if f != fecha_tomorrow][-14:]
 
     last_14_recs = pd.DataFrame()
     for fecha in last_14_days:
@@ -158,7 +148,9 @@ def aplicar_filtros_historia(pan_rec, df_ventas):
 
     if not last_14_recs.empty:
         df_combinado = pd.merge(pan_rec, last_14_recs, left_on=['id_cliente', 'cod_articulo_magic'], right_on=['id_cliente', 'Producto'], how='left', indicator=True)
-        pan_rec = df_combinado[df_combinado['_merge'] == 'left_only'][["id_cliente", "cod_articulo_magic"]]
+        df_unicos = df_combinado[df_combinado['_merge'] == 'left_only'][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
+        df_coinciden = df_combinado[df_combinado['_merge'] == 'both'][["id_cliente", "cod_articulo_magic"]].drop_duplicates()
+        pan_rec = pd.concat([df_unicos, df_coinciden], ignore_index=True)
 
     last_2_weeks = (datetime.now() - timedelta(days=14)).strftime('%Y-%m-%d')
     df_ventas["fecha_liquidacion"] = pd.to_datetime(df_ventas["fecha_liquidacion"]).dt.strftime('%Y-%m-%d')
