@@ -283,20 +283,6 @@ def main():
     df_ventas = pd.read_parquet(ruta_ventas)
     pan_rec = pd.read_parquet(ruta_recs)
 
-    # --- SEGUIMIENTO: filtrar solo compañía 1003, sucursales 25, 26, 28 ---
-    SEGUIMIENTO_COMPANIA = "1003"
-    SEGUIMIENTO_SUCURSALES = [25, 26, 28]
-    clientes_seguimiento = df_ventas[
-        (df_ventas["cod_compania"].astype(str).str.zfill(4) == SEGUIMIENTO_COMPANIA.zfill(4))
-        & (df_ventas["cod_sucursal"].isin(SEGUIMIENTO_SUCURSALES))
-    ]["id_cliente"].unique()
-    pan_rec_original_count = pan_rec.shape[0]
-    pan_rec = pan_rec[pan_rec["id_cliente"].isin(clientes_seguimiento)].reset_index(drop=True)
-    print(f"  SEGUIMIENTO: compañía {SEGUIMIENTO_COMPANIA}, sucursales {SEGUIMIENTO_SUCURSALES}")
-    print(f"  Clientes en ventas de esa compañía/sucursal: {len(clientes_seguimiento)}")
-    print(f"  Recomendaciones filtradas: {pan_rec_original_count} -> {pan_rec.shape[0]} ({pan_rec.id_cliente.nunique()} clientes)")
-    # --- FIN SEGUIMIENTO ---
-
     pan_rec_disp = aplicar_filtros_disponibilidad(pan_rec, df_ventas)
     pan_rec_hist = aplicar_filtros_historia(pan_rec_disp, df_ventas)
     final_rec = calcular_metricas_y_ensamblar(pan_rec_hist, df_ventas)
