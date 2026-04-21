@@ -1,0 +1,34 @@
+{
+  "NI": {
+    "nombre": "Nicaragua",
+    "id_prefix": "CAM",
+    "s3_prefix": "pedido_sugerido/data-v1/cam/",
+    "visitas_key": "visitas_cam000",
+    "ventas_keys": [
+      "ventas_cam000",
+      "ventas_cam001"
+    ],
+    "rutas": [
+      34278,34221,34209,34221,34222,34223,34224,34225,34226,34272,34273,34227,34228,34229,34230,34231,34232,34233,
+      34234,34235,34281,34236,34237,34238,34239,34240,34241,34242,34243,34244,34282,34245,34246,34247,34248,34249,
+      34250,34251,34252,34253,34286,34254,34255,34256,34257,34258,34259,34260,34261,34262,34287,34263,34264,34265,
+      34266,34267,34268,34269,34270,34271,34285,34274,34275,34276,34277,34278,34279,34209,34208,34211,34213,34212,
+      34218,34214,34217,34219,34216,34215
+    ],
+    "redshift_query": "select * from comercial_cam.dim_producto where estado='A' and cod_compania = '0081';",
+    "maestro_csv": "D_pan_masterProd.csv",
+    "compania_ventas_int": null,
+    "compania_str": "0081",
+    "cod_pais": "NI",
+    "backup_s3": "PS_Nicaragua/Input/visitas_cam000",
+    "ventas_parquet": "ni_ventas_manana.parquet",
+    "low_sku_threshold": 5,
+    "maestro_val_s3": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/maestro_productos_cam000",
+    "maestro_val_compania": 81,
+    "stock_s3": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/D_stock_ni.csv",
+    "skus_sin_precio": [],
+    "s3_output_prefix": "PS_Nicaragua/Output/PS_piloto_v1/",
+    "s3_output_data_prefix": "PS_Nicaragua/Output/PS_piloto_data_v1/",
+    "has_pedido_recurrente": false
+  }
+}

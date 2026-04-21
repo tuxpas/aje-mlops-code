@@ -1,0 +1,32 @@
+{
+   "CR": {
+    "nombre": "CostaRica",
+    "id_prefix": "CAM",
+    "s3_prefix": "pedido_sugerido/data-v1/cam/",
+    "visitas_key": "visitas_cam000",
+    "ventas_keys": ["ventas_cam000","ventas_cam001"],
+    "rutas": [
+      1001,1002,1003,1004,1005,1006,29000,29001,1050,1051,1007,1008,1009,1010,
+      1011,1012,1601,1602,1603,1605,1150,1152,7010,7012,7015,5010,5011,5012,5013,
+      6001,6002,6003,6004,6005,1250,1251,1252,1253,1350,1352,1353,1450,1451,
+      1001,1002,1003,1004,1005,1006,29000,29001,1050,1051,1007,1008,1009,1010,
+      1011,1012,1601,1602,1603,1606,1150,1152,7010,7012,7015,5010,5011,5012,5013,
+      6001,6002,6003,6004,6005,1250,1251,1252,1253,1350,1352,1353,1450,1451
+    ],
+    "redshift_query": "select * from comercial_cam.dim_producto where estado='A' and cod_compania = '0070';",
+    "maestro_csv": "D_pan_masterProd.csv",
+    "compania_ventas_int": null,
+    "compania_str": "0070",
+    "cod_pais": "CR",
+    "backup_s3": "PS_CostaRica/Input/visitas_cam000",
+    "ventas_parquet": "cr_ventas_manana.parquet",
+    "low_sku_threshold": 5,
+    "maestro_val_s3": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/maestro_productos_cam000",
+    "maestro_val_compania": 70,
+    "stock_s3": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/D_stock_cr.csv",
+    "skus_sin_precio": [522065, 522064, 523138, 599328, 599329, 622108, 501638, 500713, 502501, 501505, 501603],
+    "s3_output_prefix": "PS_CostaRica/Output/PS_piloto_v1/",
+    "s3_output_data_prefix": "PS_CostaRica/Output/PS_data_piloto_v1/",
+    "has_pedido_recurrente": false
+  }
+}

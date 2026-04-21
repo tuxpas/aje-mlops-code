@@ -1,0 +1,29 @@
+{
+  "MX": {
+    "nombre": "Mexico",
+    "id_prefix": "MX",
+    "s3_prefix": "pedido_sugerido/data-v1/mexico/",
+    "visitas_key": "visitas_mexico000",
+    "ventas_keys": [
+      "ventas_mexico000"
+    ],
+    "rutas": [1155, 1158, 1074, 1065],
+    "redshift_query": "select * from comercial_mexico.dim_producto where estado='A' and instancia='MX';",
+    "maestro_csv": "MX_maestro_productos.csv",
+    "compania_ventas_int": 30,
+    "compania_str": null,
+    "cod_pais": null,
+    "visitas_compania_int": 30,
+    "mx_sucursal": true,
+    "backup_s3": "PS_Mexico/Input/visitas_mexico000",
+    "ventas_parquet": "mexico_ventas_manana.parquet",
+    "low_sku_threshold": 10,
+    "maestro_val_s3": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/mexico/maestro_productos_mexico000",
+    "maestro_val_compania": 30,
+    "stock_s3": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/mexico/D_stock_mx.csv",
+    "skus_sin_precio": [],
+    "s3_output_prefix": "PS_Mexico/Output/PS_piloto_v1/",
+    "s3_output_data_prefix": "PS_Mexico/Output/PS_piloto_data_v1/",
+    "has_pedido_recurrente": false
+  }
+}

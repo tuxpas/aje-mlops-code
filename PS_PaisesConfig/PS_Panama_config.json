@@ -1,0 +1,51 @@
+{
+  "PA": {
+    "nombre": "Panama",
+    "id_prefix": "CAM",
+    "s3_prefix": "pedido_sugerido/data-v1/cam/",
+    "visitas_key": "visitas_cam000",
+    "ventas_keys": [
+      "ventas_cam000",
+      "ventas_cam001"
+    ],
+    "rutas": [
+      11101,11102,11103,11104,11105,11201,11202,11203,11204,11205,11206,11207,
+      11301,11302,11303,11401,11402,11403,11404,11405,11701,11702,11703,11704,
+      11705,11706,11707,11708,11501,11502,11503,11504,11601,11602,11603,11604,
+      11801,11802,11803,11901,11902,11101,11102,11103,11104,11105,11201,11202,
+      11203,11204,11205,11206,11301,11302,11303,11401,11402,11403,11404,11405,
+      11701,11702,11703,11704,11705,11706,11707,11708,11501,11502,11503,11504,
+      11601,11602,11603,11604,11801,11802,11803,11901,11902
+    ],
+    "redshift_query": "select * from comercial_cam.dim_producto where estado='A' and cod_compania = '0096';",
+    "maestro_csv": "D_pan_masterProd.csv",
+    "compania_ventas_int": null,
+    "compania_str": "0096",
+    "cod_pais": "PA",
+    "backup_s3": "PS_Panama/Input/visitas_cam000",
+    "ventas_parquet": "pan_ventas_manana.parquet",
+    "low_sku_threshold": 10,
+    "maestro_val_s3": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/maestro_productos_cam000",
+    "maestro_val_compania": 96,
+    "stock_s3": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/D_stock_pa.csv",
+    "skus_sin_precio": [622402],
+    "s3_output_prefix": "PS_Panama/Output/PS_todo_panama/",
+    "s3_output_data_prefix": "PS_Panama/Output/PS_todo_panama_data/",
+    "has_pedido_recurrente": false,
+    "pa_special": {
+      "rutas_especiales": [11103,11205,11301,11401],
+      "reglas_rutas_especiales": {
+        "BLINDAR": 2,
+        "MANTENER": 2,
+        "DESARROLLAR": 3,
+        "OPTIMIZAR": 2
+      },
+      "reglas_otras_rutas": {
+        "BLINDAR": 1,
+        "MANTENER": 2,
+        "DESARROLLAR": 3,
+        "OPTIMIZAR": 4
+      }
+    }
+  }
+}
