@@ -1,0 +1,35 @@
+# buildspec-build.yml
+# CodeBuild stage: build and push Docker images to ECR.
+#
+# Required CodeBuild project settings:
+#   - Privileged mode: ENABLED  (Docker-in-Docker)
+#   - IAM permissions: ecr:GetAuthorizationToken, ecr:BatchCheckLayerAvailability,
+#                      ecr:GetDownloadUrlForLayer, ecr:BatchGetImage,
+#                      ecr:PutImage, ecr:InitiateLayerUpload, ecr:UploadLayerPart,
+#                      ecr:CompleteLayerUpload, ecr:CreateRepository,
+#                      ecr:DescribeRepositories, sts:GetCallerIdentity
+#
+# This buildspec is designed to run from the repository root.
+
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "==> Verifying Docker daemon is available..."
+      - docker info
+
+  build:
+    commands:
+      - echo "==> Building and pushing ECR images..."
+      - bash cicd/scripts/build_push_ecr_images.sh
+
+  post_build:
+    commands:
+      - echo "==> Build stage complete."
+      - |
+        if [ "$CODEBUILD_BUILD_SUCCEEDING" = "1" ]; then
+          echo "Both images pushed successfully."
+        else
+          echo "Build failed — check logs above." && exit 1
+        fi

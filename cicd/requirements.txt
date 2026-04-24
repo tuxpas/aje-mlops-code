@@ -1,0 +1,10 @@
+pandas
+numpy
+boto3
+scikit-learn
+pyarrow==17.0.0
+awswrangler[redshift]
+psycopg2-binary
+redshift-connector
+openpyxl
+pytz

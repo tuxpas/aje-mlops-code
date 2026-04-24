@@ -1,0 +1,22 @@
+FROM python:3.9-slim
+
+# Java is required for PySpark (local mode SparkSession)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        default-jdk-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir \
+        pyspark==3.3.4 \
+        pyarrow==14.0.1 \
+        pandas \
+        boto3
+
+# /usr/lib/jvm/default-java is the distro-managed symlink to the active JDK
+ENV JAVA_HOME=/usr/lib/jvm/default-java
+ENV PYSPARK_PYTHON=python3
+ENV PYSPARK_DRIVER_PYTHON=python3
+
+COPY src/PS_MP_2_modelado.py /opt/program/PS_MP_2_modelado.py
+
+WORKDIR /opt/program
