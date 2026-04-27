@@ -16,13 +16,21 @@ OUTPUT_BASE = "/opt/ml/processing/output/modelado"
 os.makedirs(OUTPUT_BASE, exist_ok=True)
 
 
-def load_paises_config():
-    """Returns paises_config.json files from S3."""
-    s3 = boto3.client("s3")
-    key = f"{CONFIG_S3_PREFIX}/paises_config.json"
-    print(f"[config] Local path not found; reading from s3://{BUCKET_CONFIG}/{key}")
-    obj = s3.get_object(Bucket=BUCKET_CONFIG, Key=key)
-    return json.loads(obj["Body"].read().decode("utf-8"))
+def load_pais_config(resource_variables, pais):
+    """Returns config from dynamodb table."""
+    dynamodb = boto3.resource("dynamodb")
+
+    table_name = resource_variables["TABLE_CONFIG"]
+
+    table = dynamodb.Table(table_name)
+    response = table.get_item(
+        Key={"code_country": pais}
+    )
+    item = response.get("Item")
+    if not item:
+        raise ValueError(f"No se encontró configuración para el país: {pais}")
+
+    return item
 
 
 def create_spark_session():
@@ -116,11 +124,11 @@ def als_training_job(spark, ruta_csv_path, id_prefix):
     return client_recs
 
 
-def procesar_pais(pais, spark):
+def procesar_pais(pais, spark, resource_variables):
     """Runs ALS for all routes of a given country and saves recommendations parquet."""
     print(f"\n[{pais}] Iniciando Modelado ALS...")
-    paises_config = load_paises_config()
-    id_prefix = paises_config.get(pais, {}).get("id_prefix", pais)
+    pais_config = load_pais_config(resource_variables, pais)
+    id_prefix = pais_config.get(pais, {}).get("id_prefix", pais)
 
     input_rutas_dir = os.path.join(INPUT_BASE, "rutas")
     output_pais_dir = OUTPUT_BASE
@@ -162,16 +170,20 @@ def procesar_pais(pais, spark):
 
 def main():
     try:
-        BUCKET_CONFIG = os.environ.get("BUCKET_CONFIG")
-        CONFIG_S3_PREFIX = os.environ.get("CONFIG_S3_PREFIX")
-        BUCKET_STEPS_RESULTS = os.environ.get("BUCKET_STEPS_RESULTS")
+        resource_variables = {
+            "TABLE_CONFIG": os.environ.get("TABLE_CONFIG")
+        }
+        missing_vars = [key for key, value in resource_variables.items() if not value]
+        if missing_vars:
+            raise ValueError(f"Variables de recursos faltantes: {', '.join(missing_vars)}")
+
         pais = os.environ.get("PAIS", "").strip().upper()
         if not pais:
             raise ValueError("Variable de entorno PAIS no configurada.")
 
         print(f"Iniciando Modelado ALS para: {pais}")
         spark = create_spark_session()
-        procesar_pais(pais, spark)
+        procesar_pais(pais, spark, resource_variables)
         spark.stop()
         print(f"\nModelado para {pais} finalizado.")
 

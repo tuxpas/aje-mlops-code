@@ -21,24 +21,31 @@ COLUMNAS_VENTAS = [
     'desc_giro', 'desc_subgiro', 'fecha_proceso'
 ]
 
+def load_pais_config(resource_variables, pais):
+    """Returns config from dynamodb table."""
+    dynamodb = boto3.resource("dynamodb")
 
-def load_paises_config():
-    """Returns paises_config.json files from S3."""
-    s3 = boto3.client("s3")
-    key = f"{CONFIG_S3_PREFIX}/paises_config.json"
-    print(f"[config] Local path not found; reading from s3://{BUCKET_CONFIG}/{key}")
-    obj = s3.get_object(Bucket=BUCKET_CONFIG, Key=key)
-    return json.loads(obj["Body"].read().decode("utf-8"))
+    table_name = resource_variables["TABLE_CONFIG"]
+
+    table = dynamodb.Table(table_name)
+    response = table.get_item(
+        Key={"code_country": pais}
+    )
+    item = response.get("Item")
+    if not item:
+        raise ValueError(f"No se encontró configuración para el país: {pais}")
+
+    return item
 
 
-def comprobar_inputs(config):
+def comprobar_inputs(config, resource_variables):
     """Verifica que los archivos en S3 existan y hayan sido modificados hoy."""
     s3 = boto3.client("s3")
     hoy = datetime.now(pytz.timezone("America/Lima")).date()
     errores = []
     prefix = config["s3_prefix"]
 
-    objetos = s3.list_objects_v2(Bucket=BUCKET_ARTIFACTS, Prefix=prefix)
+    objetos = s3.list_objects_v2(Bucket=resource_variables["BUCKET_ARTIFACTS"], Prefix=prefix)
     if "Contents" not in objetos:
         raise ValueError(f"ERROR: No se encontraron archivos en {prefix}")
 
@@ -65,7 +72,7 @@ def comprobar_inputs(config):
     print(f"Inputs comprobados para {config['nombre']} :D")
 
 
-def extraer_datos(pais, config, output_dir):
+def extraer_datos(pais, config, output_dir, resource_variables):
     """Descarga maestro, visitas y ventas; cruza y retorna df_merged."""
     s3 = my_session.client("s3")
     tz = pytz.timezone("America/Lima")
@@ -87,7 +94,7 @@ def extraer_datos(pais, config, output_dir):
     maestro_prod.to_csv(os.path.join(output_dir, config["maestro_csv"]), index=False)
 
     # 2. Descargar Visitas
-    obj = s3.get_object(Bucket=BUCKET_ARTIFACTS, Key=f"{prefix}{config['visitas_key']}")
+    obj = s3.get_object(Bucket=resource_variables["BUCKET_ARTIFACTS"], Key=f"{prefix}{config['visitas_key']}")
     pan_visitas = pd.read_csv(io.BytesIO(obj["Body"].read()), sep=";")
 
     # Initial visitas filter (get clientes for cross-reference with ventas)
@@ -113,7 +120,7 @@ def extraer_datos(pais, config, output_dir):
     pan_ventas = pd.DataFrame()
     for ventas_key in config["ventas_keys"]:
         try:
-            obj = s3.get_object(Bucket=BUCKET_ARTIFACTS, Key=f"{prefix}{ventas_key}")
+            obj = s3.get_object(Bucket=resource_variables["BUCKET_ARTIFACTS"], Key=f"{prefix}{ventas_key}")
             df_temp = pd.read_csv(io.BytesIO(obj["Body"].read()), sep=";")
 
             if config.get("compania_ventas_int"):
@@ -293,8 +300,8 @@ def preparar_rutas_y_pesos(df_ventas, output_dir, low_sku_threshold):
         )
 
 
-def procesar_pais(pais, output_base, paises_config):
-    config = paises_config[pais]
+def procesar_pais(pais, output_base, pais_config, resource_variables):
+    config = pais_config
     output_dir = output_base
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, "rutas"), exist_ok=True)
@@ -303,10 +310,10 @@ def procesar_pais(pais, output_base, paises_config):
     print(f"Procesando país: {config['nombre']} ({pais})")
     print(f"{'='*60}")
 
-    comprobar_inputs(config)
+    comprobar_inputs(config, resource_variables)
 
     print(f"[{pais}] Extrayendo datos...")
-    df_maestro = extraer_datos(pais, config, output_dir)
+    df_maestro = extraer_datos(pais, config, output_dir, resource_variables)
 
     print(f"[{pais}] Filtrando clientes para mañana...")
     df_manana = filtrar_visitas_manana(df_maestro)
@@ -322,20 +329,24 @@ def procesar_pais(pais, output_base, paises_config):
 
 
 def main():
+    resource_variables = {
+        "BUCKET_ARTIFACTS": os.environ.get("BUCKET_ARTIFACTS"),
+        "TABLE_CONFIG": os.environ.get("TABLE_CONFIG")
+    }
+    
+    missing_vars = [key for key, value in resource_variables.items() if not value]
+    if missing_vars:
+        raise ValueError(f"Variables de recursos faltantes: {', '.join(missing_vars)}")
 
-    BUCKET_ARTIFACTS = os.environ.get("BUCKET_ARTIFACTS")
-    BUCKET_CONFIG = os.environ.get("BUCKET_CONFIG")
-    CONFIG_S3_PREFIX = os.environ.get("CONFIG_S3_PREFIX")
-    BUCKET_STEPS_RESULTS = os.environ.get("BUCKET_STEPS_RESULTS")
     pais = os.environ.get("PAIS", "").strip().upper()
-
-    paises_config = load_paises_config()
-    if not pais or pais not in paises_config:
-        raise ValueError(f"Variable de entorno PAIS inválida o no configurada: '{pais}'")
+    if not pais:
+        raise ValueError("Variable de entorno PAIS no configurada.")
+    
+    pais_config = load_pais_config(resource_variables, pais)
 
     print(f"Iniciando Limpieza para: {pais}")
     os.makedirs(OUTPUT_BASE, exist_ok=True)
-    procesar_pais(pais, OUTPUT_BASE, paises_config)
+    procesar_pais(pais, OUTPUT_BASE, pais_config, resource_variables)
     print(f"\nLimpieza para {pais} finalizada.")
 
 

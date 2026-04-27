@@ -18,13 +18,21 @@ fecha_actual = datetime.now(tz_lima)
 fecha_tomorrow = (fecha_actual + timedelta(days=1)).strftime("%Y-%m-%d")
 
 
-def load_paises_config():
-    """Returns paises_config.json files from S3."""
-    s3 = my_session.client("s3")
-    key = f"{CONFIG_S3_PREFIX}/paises_config.json"
-    print(f"[config] Local path not found; reading from s3://{BUCKET_CONFIG}/{key}")
-    obj = s3.get_object(Bucket=BUCKET_CONFIG, Key=key)
-    return json.loads(obj["Body"].read().decode("utf-8"))
+def load_pais_config(resource_variables, pais):
+    """Returns config from dynamodb table."""
+    dynamodb = boto3.resource("dynamodb")
+
+    table_name = resource_variables["TABLE_CONFIG"]
+
+    table = dynamodb.Table(table_name)
+    response = table.get_item(
+        Key={"code_country": pais}
+    )
+    item = response.get("Item")
+    if not item:
+        raise ValueError(f"No se encontró configuración para el país: {pais}")
+
+    return item
 
 
 def clasificar_valor(x):
@@ -138,14 +146,14 @@ def aplicar_filtros_disponibilidad(pan_rec, df_ventas, config):
     return pan_rec[["id_cliente", "cod_articulo_magic"]].drop_duplicates().reset_index(drop=True)
 
 
-def aplicar_filtros_historia(pan_rec, df_ventas, config):
+def aplicar_filtros_historia(pan_rec, df_ventas, config, resource_variables):
     """Applies historical recommendation (5.-2) and purchase exclusion (5.3) filters."""
     id_prefix = config["id_prefix"]
     s3_output_prefix = config["s3_output_prefix"]
 
     # 5.-2 Histórico de recomendaciones (últimos 14 días)
     s3 = my_session.client("s3")
-    objetos = s3.list_objects_v2(Bucket=BUCKET_BACKUP, Prefix=s3_output_prefix)
+    objetos = s3.list_objects_v2(Bucket=resource_variables["BUCKET_BACKUP"], Prefix=s3_output_prefix)
     fechas_recs = []
     if "Contents" in objetos:
         for obj in objetos["Contents"]:
@@ -319,8 +327,8 @@ def exportar_resultados(final_rec, config, pais):
     print(f"  Archivos subidos a S3.")
 
 
-def procesar_pais(pais, paises_config):
-    config = paises_config[pais]
+def procesar_pais(pais, pais_config, resource_variables):
+    config = pais_config
     limpieza_dir = INPUT_BASE_LIMPIEZA
     modelado_dir = INPUT_BASE_MODELADO
 
@@ -358,7 +366,7 @@ def procesar_pais(pais, paises_config):
             print(f"  No se pudo leer pedido recurrente: {e}. Se continúa sin excluir.")
 
     print("Aplicando filtros históricos...")
-    pan_rec_hist = aplicar_filtros_historia(pan_rec_disp, df_ventas, config)
+    pan_rec_hist = aplicar_filtros_historia(pan_rec_disp, df_ventas, config, resource_variables)
 
     print("Calculando métricas y ensamblando dataset final...")
     final_rec = calcular_metricas_y_ensamblar(pan_rec_hist, df_ventas, limpieza_dir, config)
@@ -368,18 +376,22 @@ def procesar_pais(pais, paises_config):
 
 
 def main():
-    BUCKET_BACKUP = os.environ.get("BUCKET_BACKUP")
-    BUCKET_CONFIG = os.environ.get("BUCKET_CONFIG")
-    CONFIG_S3_PREFIX = os.environ.get("CONFIG_S3_PREFIX")
-    BUCKET_STEPS_RESULTS = os.environ.get("BUCKET_STEPS_RESULTS")
-    pais = os.environ.get("PAIS", "").strip().upper()
+    resource_variables = {
+        "TABLE_CONFIG": os.environ.get("TABLE_CONFIG"),
+        "BUCKET_BACKUP": os.environ.get("BUCKET_BACKUP")
+    }
+    missing_vars = [key for key, value in resource_variables.items() if not value]
+    if missing_vars:
+        raise ValueError(f"Variables de recursos faltantes: {', '.join(missing_vars)}")
 
-    paises_config = load_paises_config()
-    if not pais or pais not in paises_config:
-        raise ValueError(f"Variable de entorno PAIS inválida o no configurada: '{pais}'")
+    pais = os.environ.get("PAIS", "").strip().upper()
+    if not pais:
+        raise ValueError("Variable de entorno PAIS no configurada.")
+
+    pais_config = load_pais_config(resource_variables, pais)
 
     print(f"Iniciando Reglas de Negocio para: {pais}")
-    procesar_pais(pais, paises_config)
+    procesar_pais(pais, pais_config, resource_variables)
     print(f"\nReglas de Negocio para {pais} finalizadas.")
 
 
