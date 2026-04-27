@@ -1,6 +1,8 @@
 from aws_cdk import (
     Duration,
+    RemovalPolicy,
     Stack,
+    aws_dynamodb as dynamodb,
     aws_lambda as _lambda,
     aws_events as events,
     aws_events_targets as targets,
@@ -22,7 +24,8 @@ class InfraStack(Stack):
 
         # ── Lambda ──────────────────────────────────────────────────────────────
         lambda_role = iam.Role(
-            self, "LambdaTriggerRole",
+            self, "AjeDevPsLambdaRoleIam",
+            role_name="aje-dev-ps-lambdarole-iam", 
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
@@ -38,8 +41,8 @@ class InfraStack(Stack):
         )
 
         trigger_fn = _lambda.Function(
-            self, "PSTriggerLambda",
-            function_name="ps-trigger-lambda",
+            self, "AjeDevPsTriggerFunctionLambda",
+            function_name="aje-dev-ps-triggerfunction-lambda",
             runtime=_lambda.Runtime.PYTHON_3_12,
             handler="lambda.lambda_handler",
             code=_lambda.Code.from_asset("./lambda"),
@@ -49,21 +52,43 @@ class InfraStack(Stack):
         )
 
         # ── EventBridge ─────────────────────────────────────────────────────────
-        schedule_rule = events.Rule(
-            self, "PSScheduleRule",
-            rule_name="ps-weekly-trigger",
-            description="Triggers the Pedido Sugerido SageMaker pipeline weekly",
-            schedule=events.Schedule.cron(
-                minute="0",
-                hour="11",
-                week_day="*", #ALL(*) ; MON,TUE,WED,THU,FRI,SAT,SUN ; MON-FRI ; MON,WED,FRI
+        for code_country in ["CR","EC","GT","MX","NI","PA","PE"]:
+            schedule_rule = events.Rule(
+                self, "AjeDevPsScheduleRule{code_country}EventBridge",
+                rule_name="aje-dev-ps-schedulerule-{code_country}-eventbridge",
+                description="Triggers the Pedido Sugerido SageMaker pipeline",
+                schedule=events.Schedule.cron(
+                    minute="0",
+                    hour="11",
+                    week_day="*", #ALL(*) ; MON,TUE,WED,THU,FRI,SAT,SUN ; MON-FRI ; MON,WED,FRI
+                ),
+            )
+
+            schedule_rule.add_target(
+                targets.LambdaFunction(
+                    trigger_fn,
+                    event=events.RuleTargetInput.from_object({
+                        "code_country": code_country
+                    })
+                )
+            )
+
+        # ── DynamoDB – Country config table ─────────────────────────────────────
+        config_table = dynamodb.Table(
+            self, "AjeDevPsConfigTableDynamoDB",
+            table_name="aje-dev-ps-configtable-dynamodb",
+            partition_key=dynamodb.Attribute(
+                name="code_country",
+                type=dynamodb.AttributeType.STRING,
             ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
         )
-        schedule_rule.add_target(targets.LambdaFunction(trigger_fn))
 
         # ── CodeBuild – Build (Docker + ECR push) ────────────────────────────────
         build_role = iam.Role(
-            self, "CodeBuildBuildRole",
+            self, "AjeDevPsBuildRoleIam",
+            role_name="aje-dev-ps-buildrole-iam",
             assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
         )
         build_role.add_to_policy(
@@ -92,8 +117,8 @@ class InfraStack(Stack):
         )
 
         build_project = codebuild.Project(
-            self, "PSBuildProject",
-            project_name="aje-dev-ps-build",
+            self, "AjeDevPsBuildProjectCodeBuild",
+            project_name="aje-dev-ps-buildproject-codebuild",
             build_spec=codebuild.BuildSpec.from_source_filename("cicd/buildspec-build.yml"),
             environment=codebuild.BuildEnvironment(
                 build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
@@ -104,7 +129,8 @@ class InfraStack(Stack):
 
         # ── CodeBuild – Deploy (SageMaker pipeline upsert) ───────────────────────
         deploy_role = iam.Role(
-            self, "CodeBuildDeployRole",
+            self, "AjeDevPsDeployRoleIam",
+            role_name="aje-dev-ps-deployrole-iam"
             assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
         )
         deploy_role.add_to_policy(
@@ -130,8 +156,8 @@ class InfraStack(Stack):
         )
 
         deploy_project = codebuild.Project(
-            self, "PSDeployProject",
-            project_name="aje-dev-ps-deploy",
+            self, "AjeDevPsDeployProjectCodeBuild",
+            project_name="aje-dev-ps-deployproject-codebuild",
             build_spec=codebuild.BuildSpec.from_source_filename("cicd/buildspec-deploy.yml"),
             environment=codebuild.BuildEnvironment(
                 build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
@@ -155,8 +181,8 @@ class InfraStack(Stack):
         build_output = codepipeline.Artifact("BuildOutput")
 
         codepipeline.Pipeline(
-            self, "PSPipeline",
-            pipeline_name="aje-dev-ps-cicd-pipeline",
+            self, "AjeDevPsPipelineCodePipeline",
+            pipeline_name="aje-dev-ps-pipeline-codepipeline",
             stages=[
                 codepipeline.StageProps(
                     stage_name="Source",
@@ -197,30 +223,25 @@ class InfraStack(Stack):
 
         # ── SNS Topic – alerts ───────────────────────────────────────────────────
         alerts_topic = sns.Topic(
-            self, "PSAlertsTopic",
-            topic_name="aje-dev-ps-pipeline-alerts",
+            self, "AjeDevPsAlertTopicSns",
+            topic_name="aje-dev-ps-alert-topic-sns",
             display_name="AJE Pedido Sugerido – Pipeline Alerts",
         )
 
         # ── CloudWatch Alarms ────────────────────────────────────────────────────
-        # The SageMaker pipeline name is supplied via CDK context so it can be
-        # overridden per environment:  cdk deploy --context sagemaker_pipeline_name=...
-        sm_pipeline_name = (
-            self.node.try_get_context("sagemaker_pipeline_name") or "aje-dev-ps-pipeline"
-        )
 
         def _sm_metric(metric_name: str) -> cloudwatch.Metric:
             return cloudwatch.Metric(
                 namespace="AWS/SageMaker",
                 metric_name=metric_name,
-                dimensions_map={"PipelineName": sm_pipeline_name},
+                dimensions_map={"PipelineName": "aje-dev-ps-pipeline-sagemaker"},
                 period=Duration.minutes(60),
                 statistic="Sum",
             )
 
         failed_alarm = cloudwatch.Alarm(
-            self, "PSExecutionsFailedAlarm",
-            alarm_name="aje-dev-ps-executions-failed",
+            self, "AjeDevPsExecutionFailedAlarmCloudWatch",
+            alarm_name="aje-dev-ps-executionfailedalarm-cloudwatch",
             alarm_description="One or more SageMaker pipeline executions failed in the last hour.",
             metric=_sm_metric("ExecutionsFailed"),
             threshold=1,
@@ -232,8 +253,8 @@ class InfraStack(Stack):
         failed_alarm.add_ok_action(cw_actions.SnsAction(alerts_topic))
 
         stopped_alarm = cloudwatch.Alarm(
-            self, "PSExecutionsStoppedAlarm",
-            alarm_name="aje-dev-ps-executions-stopped",
+            self, "AjeDevPsExecutionStoppedAlarmCloudWatch",
+            alarm_name="aje-dev-ps-executiontoppedalarm-cloudwatch",
             alarm_description="One or more SageMaker pipeline executions were stopped in the last hour.",
             metric=_sm_metric("ExecutionsStopped"),
             threshold=1,
@@ -245,8 +266,8 @@ class InfraStack(Stack):
 
         # ── CloudWatch Dashboard ─────────────────────────────────────────────────
         dashboard = cloudwatch.Dashboard(
-            self, "PSDashboard",
-            dashboard_name="aje-dev-ps-pipeline-monitoring",
+            self, "AjeDevPsMonitoringDashboardCloudWatch",
+            dashboard_name="aje-dev-ps-monitoringdashboard-cloudwatch",
         )
         dashboard.add_widgets(
             cloudwatch.GraphWidget(
