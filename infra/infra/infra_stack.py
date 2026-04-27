@@ -54,8 +54,8 @@ class InfraStack(Stack):
         # ── EventBridge ─────────────────────────────────────────────────────────
         for code_country in ["CR","EC","GT","MX","NI","PA","PE"]:
             schedule_rule = events.Rule(
-                self, "AjeDevPsScheduleRule{code_country}EventBridge",
-                rule_name="aje-dev-ps-schedulerule-{code_country}-eventbridge",
+                self, f"AjeDevPsScheduleRule{code_country}EventBridge",
+                rule_name=f"aje-dev-ps-schedulerule-{code_country}-eventbridge",
                 description="Triggers the Pedido Sugerido SageMaker pipeline",
                 schedule=events.Schedule.cron(
                     minute="0",
@@ -119,7 +119,7 @@ class InfraStack(Stack):
         build_project = codebuild.Project(
             self, "AjeDevPsBuildProjectCodeBuild",
             project_name="aje-dev-ps-buildproject-codebuild",
-            build_spec=codebuild.BuildSpec.from_source_filename("cicd/buildspec-build.yml"),
+            build_spec=codebuild.BuildSpec.from_asset("../cicd/buildspec-build.yml"),
             environment=codebuild.BuildEnvironment(
                 build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
                 privileged=True,
@@ -130,7 +130,7 @@ class InfraStack(Stack):
         # ── CodeBuild – Deploy (SageMaker pipeline upsert) ───────────────────────
         deploy_role = iam.Role(
             self, "AjeDevPsDeployRoleIam",
-            role_name="aje-dev-ps-deployrole-iam"
+            role_name="aje-dev-ps-deployrole-iam",
             assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
         )
         deploy_role.add_to_policy(
@@ -158,7 +158,7 @@ class InfraStack(Stack):
         deploy_project = codebuild.Project(
             self, "AjeDevPsDeployProjectCodeBuild",
             project_name="aje-dev-ps-deployproject-codebuild",
-            build_spec=codebuild.BuildSpec.from_source_filename("cicd/buildspec-deploy.yml"),
+            build_spec=codebuild.BuildSpec.from_asset("../cicd/buildspec-deploy.yml"),
             environment=codebuild.BuildEnvironment(
                 build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
                 privileged=False,
