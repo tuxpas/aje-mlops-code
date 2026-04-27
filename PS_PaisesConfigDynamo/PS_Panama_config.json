@@ -1,0 +1,142 @@
+{
+  "code_country": {
+    "S": "PA"
+  },
+  "nombre": {
+    "S": "Panama"
+  },
+  "id_prefix": {
+    "S": "CAM"
+  },
+  "s3_prefix": {
+    "S": "pedido_sugerido/data-v1/cam/"
+  },
+  "visitas_key": {
+    "S": "visitas_cam000"
+  },
+  "ventas_keys": {
+    "L": [
+      {
+        "S": "ventas_cam000"
+      },
+      {
+        "S": "ventas_cam001"
+      }
+    ]
+  },
+    "rutas": {
+    "L": [
+      {"N": "11101"}, {"N": "11102"}, {"N": "11103"}, {"N": "11104"}, {"N": "11105"}, {"N": "11201"}, {"N": "11202"},
+      {"N": "11203"}, {"N": "11204"}, {"N": "11205"}, {"N": "11206"}, {"N": "11207"}, {"N": "11301"}, {"N": "11302"},
+      {"N": "11303"}, {"N": "11401"}, {"N": "11402"}, {"N": "11403"}, {"N": "11404"}, {"N": "11405"}, {"N": "11701"},
+      {"N": "11702"}, {"N": "11703"}, {"N": "11704"}, {"N": "11705"}, {"N": "11706"}, {"N": "11707"}, {"N": "11708"},
+      {"N": "11501"}, {"N": "11502"}, {"N": "11503"}, {"N": "11504"}, {"N": "11601"}, {"N": "11602"}, {"N": "11603"},
+      {"N": "11604"}, {"N": "11801"}, {"N": "11802"}, {"N": "11803"}, {"N": "11901"}, {"N": "11902"}, {"N": "11101"},
+      {"N": "11102"}, {"N": "11103"}, {"N": "11104"}, {"N": "11105"}, {"N": "11201"}, {"N": "11202"}, {"N": "11203"},
+      {"N": "11204"}, {"N": "11205"}, {"N": "11206"}, {"N": "11301"}, {"N": "11302"}, {"N": "11303"}, {"N": "11401"},
+      {"N": "11402"}, {"N": "11403"}, {"N": "11404"}, {"N": "11405"}, {"N": "11701"}, {"N": "11702"}, {"N": "11703"},
+      {"N": "11704"}, {"N": "11705"}, {"N": "11706"}, {"N": "11707"}, {"N": "11708"}, {"N": "11501"}, {"N": "11502"},
+      {"N": "11503"}, {"N": "11504"}, {"N": "11601"}, {"N": "11602"}, {"N": "11603"}, {"N": "11604"}, {"N": "11801"},
+      {"N": "11802"}, {"N": "11803"}, {"N": "11901"}, {"N": "11902"}
+    ]
+  },
+  "redshift_query": {
+    "S": "select * from comercial_cam.dim_producto where estado='A' and cod_compania = '0096';"
+  },
+  "maestro_csv": {
+    "S": "D_pan_masterProd.csv"
+  },
+  "compania_ventas_int": {
+    "NULL": true
+  },
+  "compania_str": {
+    "S": "0096"
+  },
+  "cod_pais": {
+    "S": "PA"
+  },
+  "backup_s3": {
+    "S": "PS_Panama/Input/visitas_cam000"
+  },
+  "ventas_parquet": {
+    "S": "pan_ventas_manana.parquet"
+  },
+  "low_sku_threshold": {
+    "N": "10"
+  },
+  "maestro_val_s3": {
+    "S": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/maestro_productos_cam000"
+  },
+  "maestro_val_compania": {
+    "N": "96"
+  },
+  "stock_s3": {
+    "S": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/D_stock_pa.csv"
+  },
+    "skus_sin_precio": {
+    "L": [
+      {"N": "622402"}
+    ]
+  },
+  "s3_output_prefix": {
+    "S": "PS_Panama/Output/PS_todo_panama/"
+  },
+  "s3_output_data_prefix": {
+    "S": "PS_Panama/Output/PS_todo_panama_data/"
+  },
+  "has_pedido_recurrente": {
+    "BOOL": false
+  },
+  "pa_special": {
+    "M": {
+      "rutas_especiales": {
+        "L": [
+          {
+            "N": "11103"
+          },
+          {
+            "N": "11205"
+          },
+          {
+            "N": "11301"
+          },
+          {
+            "N": "11401"
+          }
+        ]
+      },
+      "reglas_rutas_especiales": {
+        "M": {
+          "BLINDAR": {
+            "N": "2"
+          },
+          "MANTENER": {
+            "N": "2"
+          },
+          "DESARROLLAR": {
+            "N": "3"
+          },
+          "OPTIMIZAR": {
+            "N": "2"
+          }
+        }
+      },
+      "reglas_otras_rutas": {
+        "M": {
+          "BLINDAR": {
+            "N": "1"
+          },
+          "MANTENER": {
+            "N": "2"
+          },
+          "DESARROLLAR": {
+            "N": "3"
+          },
+          "OPTIMIZAR": {
+            "N": "4"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "code_country": {
+    "S": "MX"
+  },
+  "nombre": {
+    "S": "Mexico"
+  },
+  "id_prefix": {
+    "S": "MX"
+  },
+  "s3_prefix": {
+    "S": "pedido_sugerido/data-v1/mexico/"
+  },
+  "visitas_key": {
+    "S": "visitas_mexico000"
+  },
+  "ventas_keys": {
+    "L": [
+      {
+        "S": "ventas_mexico000"
+      }
+    ]
+  },
+    "rutas": {
+    "L": [
+      {"N": "1155"}, {"N": "1158"}, {"N": "1074"}, {"N": "1065"}
+    ]
+  },
+  "redshift_query": {
+    "S": "select * from comercial_mexico.dim_producto where estado='A' and instancia='MX';"
+  },
+  "maestro_csv": {
+    "S": "MX_maestro_productos.csv"
+  },
+  "compania_ventas_int": {
+    "N": "30"
+  },
+  "compania_str": {
+    "NULL": true
+  },
+  "cod_pais": {
+    "NULL": true
+  },
+  "visitas_compania_int": {
+    "N": "30"
+  },
+  "mx_sucursal": {
+    "BOOL": true
+  },
+  "backup_s3": {
+    "S": "PS_Mexico/Input/visitas_mexico000"
+  },
+  "ventas_parquet": {
+    "S": "mexico_ventas_manana.parquet"
+  },
+  "low_sku_threshold": {
+    "N": "10"
+  },
+  "maestro_val_s3": {
+    "S": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/mexico/maestro_productos_mexico000"
+  },
+  "maestro_val_compania": {
+    "N": "30"
+  },
+  "stock_s3": {
+    "S": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/mexico/D_stock_mx.csv"
+  },
+  "skus_sin_precio": {
+    "L": []
+  },
+  "s3_output_prefix": {
+    "S": "PS_Mexico/Output/PS_piloto_v1/"
+  },
+  "s3_output_data_prefix": {
+    "S": "PS_Mexico/Output/PS_piloto_data_v1/"
+  },
+  "has_pedido_recurrente": {
+    "BOOL": false
+  }
+}

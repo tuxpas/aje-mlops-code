@@ -1,0 +1,88 @@
+{
+  "code_country": {
+    "S": "NI"
+  },
+  "nombre": {
+    "S": "Nicaragua"
+  },
+  "id_prefix": {
+    "S": "CAM"
+  },
+  "s3_prefix": {
+    "S": "pedido_sugerido/data-v1/cam/"
+  },
+  "visitas_key": {
+    "S": "visitas_cam000"
+  },
+  "ventas_keys": {
+    "L": [
+      {
+        "S": "ventas_cam000"
+      },
+      {
+        "S": "ventas_cam001"
+      }
+    ]
+  },
+    "rutas": {
+    "L": [
+      {"N": "34278"}, {"N": "34221"}, {"N": "34209"}, {"N": "34221"}, {"N": "34222"}, {"N": "34223"}, {"N": "34224"},
+      {"N": "34225"}, {"N": "34226"}, {"N": "34272"}, {"N": "34273"}, {"N": "34227"}, {"N": "34228"}, {"N": "34229"},
+      {"N": "34230"}, {"N": "34231"}, {"N": "34232"}, {"N": "34233"}, {"N": "34234"}, {"N": "34235"}, {"N": "34281"},
+      {"N": "34236"}, {"N": "34237"}, {"N": "34238"}, {"N": "34239"}, {"N": "34240"}, {"N": "34241"}, {"N": "34242"},
+      {"N": "34243"}, {"N": "34244"}, {"N": "34282"}, {"N": "34245"}, {"N": "34246"}, {"N": "34247"}, {"N": "34248"},
+      {"N": "34249"}, {"N": "34250"}, {"N": "34251"}, {"N": "34252"}, {"N": "34253"}, {"N": "34286"}, {"N": "34254"},
+      {"N": "34255"}, {"N": "34256"}, {"N": "34257"}, {"N": "34258"}, {"N": "34259"}, {"N": "34260"}, {"N": "34261"},
+      {"N": "34262"}, {"N": "34287"}, {"N": "34263"}, {"N": "34264"}, {"N": "34265"}, {"N": "34266"}, {"N": "34267"},
+      {"N": "34268"}, {"N": "34269"}, {"N": "34270"}, {"N": "34271"}, {"N": "34285"}, {"N": "34274"}, {"N": "34275"},
+      {"N": "34276"}, {"N": "34277"}, {"N": "34278"}, {"N": "34279"}, {"N": "34209"}, {"N": "34208"}, {"N": "34211"},
+      {"N": "34213"}, {"N": "34212"}, {"N": "34218"}, {"N": "34214"}, {"N": "34217"}, {"N": "34219"}, {"N": "34216"},
+      {"N": "34215"}
+    ]
+  },
+  "redshift_query": {
+    "S": "select * from comercial_cam.dim_producto where estado='A' and cod_compania = '0081';"
+  },
+  "maestro_csv": {
+    "S": "D_pan_masterProd.csv"
+  },
+  "compania_ventas_int": {
+    "NULL": true
+  },
+  "compania_str": {
+    "S": "0081"
+  },
+  "cod_pais": {
+    "S": "NI"
+  },
+  "backup_s3": {
+    "S": "PS_Nicaragua/Input/visitas_cam000"
+  },
+  "ventas_parquet": {
+    "S": "ni_ventas_manana.parquet"
+  },
+  "low_sku_threshold": {
+    "N": "5"
+  },
+  "maestro_val_s3": {
+    "S": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/maestro_productos_cam000"
+  },
+  "maestro_val_compania": {
+    "N": "81"
+  },
+  "stock_s3": {
+    "S": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/D_stock_ni.csv"
+  },
+  "skus_sin_precio": {
+    "L": []
+  },
+  "s3_output_prefix": {
+    "S": "PS_Nicaragua/Output/PS_piloto_v1/"
+  },
+  "s3_output_data_prefix": {
+    "S": "PS_Nicaragua/Output/PS_piloto_data_v1/"
+  },
+  "has_pedido_recurrente": {
+    "BOOL": false
+  }
+}

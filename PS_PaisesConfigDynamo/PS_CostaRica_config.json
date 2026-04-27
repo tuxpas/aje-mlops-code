@@ -1,0 +1,92 @@
+{
+  "code_country": {
+    "S": "CR"
+  },
+  "nombre": {
+    "S": "CostaRica"
+  },
+  "id_prefix": {
+    "S": "CAM"
+  },
+  "s3_prefix": {
+    "S": "pedido_sugerido/data-v1/cam/"
+  },
+  "visitas_key": {
+    "S": "visitas_cam000"
+  },
+  "ventas_keys": {
+    "L": [
+      {
+        "S": "ventas_cam000"
+      },
+      {
+        "S": "ventas_cam001"
+      }
+    ]
+  },
+      "rutas": {
+    "L": [
+      {"N": "1001"}, {"N": "1002"}, {"N": "1003"}, {"N": "1004"}, {"N": "1005"}, {"N": "1006"}, {"N": "29000"},
+      {"N": "29001"}, {"N": "1050"}, {"N": "1051"}, {"N": "1007"}, {"N": "1008"}, {"N": "1009"}, {"N": "1010"},
+      {"N": "1011"}, {"N": "1012"}, {"N": "1601"}, {"N": "1602"}, {"N": "1603"}, {"N": "1605"}, {"N": "1150"},
+      {"N": "1152"}, {"N": "7010"}, {"N": "7012"}, {"N": "7015"}, {"N": "5010"}, {"N": "5011"}, {"N": "5012"},
+      {"N": "5013"}, {"N": "6001"}, {"N": "6002"}, {"N": "6003"}, {"N": "6004"}, {"N": "6005"}, {"N": "1250"},
+      {"N": "1251"}, {"N": "1252"}, {"N": "1253"}, {"N": "1350"}, {"N": "1352"}, {"N": "1353"}, {"N": "1450"},
+      {"N": "1451"}, {"N": "1001"}, {"N": "1002"}, {"N": "1003"}, {"N": "1004"}, {"N": "1005"}, {"N": "1006"},
+      {"N": "29000"}, {"N": "29001"}, {"N": "1050"}, {"N": "1051"}, {"N": "1007"}, {"N": "1008"}, {"N": "1009"},
+      {"N": "1010"}, {"N": "1011"}, {"N": "1012"}, {"N": "1601"}, {"N": "1602"}, {"N": "1603"}, {"N": "1606"},
+      {"N": "1150"}, {"N": "1152"}, {"N": "7010"}, {"N": "7012"}, {"N": "7015"}, {"N": "5010"}, {"N": "5011"},
+      {"N": "5012"}, {"N": "5013"}, {"N": "6001"}, {"N": "6002"}, {"N": "6003"}, {"N": "6004"}, {"N": "6005"},
+      {"N": "1250"}, {"N": "1251"}, {"N": "1252"}, {"N": "1253"}, {"N": "1350"}, {"N": "1352"}, {"N": "1353"},
+      {"N": "1450"}, {"N": "1451"}
+    ]
+  },
+  "redshift_query": {
+    "S": "select * from comercial_cam.dim_producto where estado='A' and cod_compania = '0070';"
+  },
+  "maestro_csv": {
+    "S": "D_pan_masterProd.csv"
+  },
+  "compania_ventas_int": {
+    "NULL": true
+  },
+  "compania_str": {
+    "S": "0070"
+  },
+  "cod_pais": {
+    "S": "CR"
+  },
+  "backup_s3": {
+    "S": "PS_CostaRica/Input/visitas_cam000"
+  },
+  "ventas_parquet": {
+    "S": "cr_ventas_manana.parquet"
+  },
+  "low_sku_threshold": {
+    "N": "5"
+  },
+  "maestro_val_s3": {
+    "S": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/maestro_productos_cam000"
+  },
+  "maestro_val_compania": {
+    "N": "70"
+  },
+  "stock_s3": {
+    "S": "s3://aje-prd-analytics-artifacts-s3/pedido_sugerido/data-v1/cam/D_stock_cr.csv"
+  },
+    "skus_sin_precio": {
+    "L": [
+      {"N": "522065"}, {"N": "522064"}, {"N": "523138"}, {"N": "599328"}, {"N": "599329"}, {"N": "622108"}, {"N": "501638"},
+      {"N": "500713"}, {"N": "502501"}, {"N": "501505"}, {"N": "501603"}
+    ]
+  },
+  "s3_output_prefix": {
+    "S": "PS_CostaRica/Output/PS_piloto_v1/"
+  },
+  "s3_output_data_prefix": {
+    "S": "PS_CostaRica/Output/PS_data_piloto_v1/"
+  },
+  "has_pedido_recurrente": {
+    "BOOL": false
+  }
+}
