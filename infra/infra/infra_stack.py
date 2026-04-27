@@ -17,7 +17,7 @@ from aws_cdk import (
 from constructs import Construct
 
 
-class InfraStack(Stack):
+class AjeDevPsInfraStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -254,7 +254,7 @@ class InfraStack(Stack):
 
         stopped_alarm = cloudwatch.Alarm(
             self, "AjeDevPsExecutionStoppedAlarmCloudWatch",
-            alarm_name="aje-dev-ps-executiontoppedalarm-cloudwatch",
+            alarm_name="aje-dev-ps-executionstoppedalarm-cloudwatch",
             alarm_description="One or more SageMaker pipeline executions were stopped in the last hour.",
             metric=_sm_metric("ExecutionsStopped"),
             threshold=1,
