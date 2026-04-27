@@ -18,7 +18,7 @@ def lambda_handler(event, context):
             PipelineName='Pipeline-PedidoSugerido-OneRun',
             PipelineExecutionDisplayName=execution_name,
             PipelineParameters=[
-                {"Name": "country", "Value": code_country}
+                {"Name": "code_country", "Value": code_country}
             ]
         )
 
@@ -26,12 +26,12 @@ def lambda_handler(event, context):
             "statusCode": 200,
             "executionArn": response["PipelineExecutionArn"],
             "executionName": execution_name,
-            "country": code_country
+            "code_country": code_country
         }
 
     except Exception as e:
         return {
             "statusCode": 500,
             "error": str(e),
-            "country": code_country
+            "code_country": code_country
         }
