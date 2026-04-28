@@ -3,26 +3,23 @@ import os
 
 import aws_cdk as cdk
 
-from infra.infra_stack import AjeDevPsInfraStack
+from infra.infra_stack import AjePsInfraStack
 
 
 app = cdk.App()
-AjeDevPsInfraStack(app, "AjeDevPsInfraStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+stage = app.node.try_get_context("stage") or "dev"
+if stage not in ("dev", "test", "prod"):
+    raise ValueError(f"Invalid env '{stage}'. Must be one of: dev, test, prod")
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
+region = app.node.try_get_context("region") or "us-east-2"
+account = app.node.try_get_context("account") or "832257724409"
 
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
-
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
-
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+AjePsInfraStack(
+    app, 
+    f"Aje{stage.capitalize()}PsInfraStack",
+    stage=stage,
+    env=cdk.Environment(account=account, region=region)
+)
 
 app.synth()
