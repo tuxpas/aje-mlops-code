@@ -66,7 +66,10 @@ class AjePsInfraStack(Stack):
             code=_lambda.Code.from_asset("./lambda"),
             role=lambda_role,
             timeout=Duration.seconds(30),
-            environment={"code_country": "EC"},
+            environment={
+                "code_country": "EC",
+                "stage":stage
+            },
         )
 
         # ── EventBridge ─────────────────────────────────────────────────────────

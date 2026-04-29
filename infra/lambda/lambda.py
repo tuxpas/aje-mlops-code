@@ -11,11 +11,15 @@ def lambda_handler(event, context):
         "EC"
     ).upper()
 
+    stage = (
+        os.environ.get("stage") or 
+        "dev"
+    )
     execution_name = f"ps-{code_country}-{datetime.datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
 
     try:
         response = client.start_pipeline_execution(
-            PipelineName='Pipeline-PedidoSugerido-OneRun',
+            PipelineName=f"aje-{stage}-ps-pipeline-sagemaker",
             PipelineExecutionDisplayName=execution_name,
             PipelineParameters=[
                 {"Name": "code_country", "Value": code_country}
@@ -33,5 +37,6 @@ def lambda_handler(event, context):
         return {
             "statusCode": 500,
             "error": str(e),
-            "code_country": code_country
+            "code_country": code_country,
+            "stage": stage
         }
