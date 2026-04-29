@@ -15,15 +15,17 @@ from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.parameters import ParameterString
 from sagemaker.workflow.functions import Join
 
-REGION = "us-east-2"
+STAGE = os.environ.get("STAGE", "dev")
+REGION = os.environ.get("REGION", "us-east-2")
+ACCOUNT = os.environ.get("ACCOUNT", "832257724409")
 
-BUCKET_ARTIFACTS = "aje-dev-analytics-artifacts-s3" # Bucket for storing the inputs for the sm pipeline
-BUCKET_BACKUP = "aje-analytics-ps-backup" # Bucket for storing the results of the reglas_negocio pipeline step
-BUCKET_STEPS_RESULTS = "aje-dev-analytics-artifacts-s3" # Bucket for the results of the pipeline steps, for now is the same as bucket artifacts
-TABLE_CONFIG = "aje-dev-ps-configtable-dynamodb" # Table for storing the specific configs of countries
+BUCKET_ARTIFACTS = f"aje-{STAGE}-analytics-artifacts-s3"
+BUCKET_BACKUP = "aje-analytics-ps-backup"
+BUCKET_STEPS_RESULTS = f"aje-{STAGE}-analytics-artifacts-s3"
+TABLE_CONFIG = f"aje-{STAGE}-ps-configtable-dynamodb"
 
-PROCESSING_IMAGE_NAME = "aje-ps-processing"
-SPARK_IMAGE_NAME = "aje-ps-spark"
+PROCESSING_IMAGE_NAME = f"aje-{STAGE}-ps-processing"
+SPARK_IMAGE_NAME = f"aje-{STAGE}-ps-spark"
 IMAGE_TAG = "latest"
 
 code_country = ParameterString(name="code_country")  # "EC", "MX", "PE", "CR", "GT", "NI" or "PA"
@@ -153,7 +155,7 @@ def crear_pipeline(sagemaker_session, role, default_bucket, account_id):
     )
 
     pipeline = Pipeline(
-        name="aje-dev-ps-pipeline-sagemaker",
+        name=f"aje-{STAGE}-ps-pipeline-sagemaker",
         parameters=[code_country],
         steps=[step_limpieza, step_modelado, step_reglas],
         sagemaker_session=sagemaker_session,
@@ -173,8 +175,7 @@ def main(pais=None, ejecutar=False):
     role = os.getenv("SAGEMAKER_ROLE_ARN") or get_execution_role()
     #default_bucket = sagemaker_session.default_bucket()
     default_bucket = BUCKET_STEPS_RESULTS
-    sts = boto3.client("sts", region_name=REGION)
-    account_id = sts.get_caller_identity()["Account"]
+    account_id = ACCOUNT or boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]
 
     print(f"SageMaker role: {role}")
     print(f"Default bucket: {default_bucket}")

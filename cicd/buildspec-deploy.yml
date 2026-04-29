@@ -23,6 +23,8 @@ env:
   variables:
     EJECUTAR: "false"
     PAIS: ""
+    STAGE: "dev"
+    REGION: "us-east-2"
 
 phases:
   install:
@@ -38,6 +40,8 @@ phases:
       - echo "==> Deploy configuration"
       - echo "    PAIS      = ${PAIS}"
       - echo "    EJECUTAR  = ${EJECUTAR}"
+      - echo "    STAGE     = ${STAGE}"
+      - echo "    REGION    = ${REGION}"
       - |
         if [ "${EJECUTAR}" = "true" ] && [ -z "${PAIS}" ]; then
           echo "ERROR: PAIS must be set when EJECUTAR=true." && exit 1

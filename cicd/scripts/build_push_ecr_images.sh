@@ -3,12 +3,13 @@
 # Run from the ecr/ directory:  bash build_push_ecr_images.sh
 set -e
 
-REGION="us-east-2"
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+STAGE="${STAGE:-dev}"
+REGION="${REGION:-us-east-2}"
+ACCOUNT_ID="${ACCOUNT:-$(aws sts get-caller-identity --query Account --output text)}"
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
-PROCESSING_REPO="aje-ps-processing"
-SPARK_REPO="aje-ps-spark"
+PROCESSING_REPO="aje-${STAGE}-ps-processing"
+SPARK_REPO="aje-${STAGE}-ps-spark"
 TAG="latest"
 
 # Ensure we're in the ecr/ directory (build context)

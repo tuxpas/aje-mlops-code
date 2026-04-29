@@ -36,7 +36,7 @@ class AjePsInfraStack(Stack):
         lambda_role.add_to_policy(
             iam.PolicyStatement(
                 actions=["sagemaker:StartPipelineExecution"],
-                resources=["*"],
+                resources=[f"arn:aws:sagemaker:{Stack.of(self).region}:{Stack.of(self).account}:pipeline/aje-{stage}-ps-pipeline"],
             )
         )
 
@@ -205,6 +205,11 @@ class AjePsInfraStack(Stack):
                             project=build_project,
                             input=source_output,
                             outputs=[build_output],
+                            environment_variables={
+                                "STAGE": codebuild.BuildEnvironmentVariable(value=stage),
+                                "REGION": codebuild.BuildEnvironmentVariable(value=self.region),
+                                "ACCOUNT": codebuild.BuildEnvironmentVariable(value=self.account),
+                            }
                         )
                     ],
                 ),
@@ -215,6 +220,11 @@ class AjePsInfraStack(Stack):
                             action_name="Deploy_SageMaker_Pipeline",
                             project=deploy_project,
                             input=build_output,
+                            environment_variables={
+                                "STAGE": codebuild.BuildEnvironmentVariable(value=stage),
+                                "REGION": codebuild.BuildEnvironmentVariable(value=self.region),
+                                "ACCOUNT": codebuild.BuildEnvironmentVariable(value=self.account),
+                            }
                         )
                     ],
                 ),
