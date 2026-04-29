@@ -2,6 +2,7 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
+    aws_s3 as s3,
     aws_dynamodb as dynamodb,
     aws_lambda as _lambda,
     aws_events as events,
@@ -22,23 +23,40 @@ class AjePsInfraStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, stage: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # ── S3 ──────────────────────────────────────────────────────────────
+        codepipeline_bucket = s3.Bucket(
+            self, f"Aje{stage.capitalize()}PsCodePipelineBucketS3",
+            bucket_name=f"aje-{stage}-ps-codepipelinebucket-s3"
+        )
+
         # ── Lambda ──────────────────────────────────────────────────────────────
-        lambda_role = iam.Role(
-            self, f"Aje{stage.capitalize()}PsLambdaRoleIam",
-            role_name=f"aje-{stage}-ps-lambdarole-iam", 
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AWSLambdaBasicExecutionRole"
+        lambda_policy = iam.Policy(
+            self, f"Aje{stage.capitalize()}PsLambdaPolicyIam",
+            policy_name=f"aje-{stage}-ps-lambdapolicy-iam",
+            statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "sagemaker:StartPipelineExecution"
+                    ],
+                    resources=[f"arn:aws:sagemaker:{Stack.of(self).region}:{Stack.of(self).account}:pipeline/aje-{stage}-ps-pipeline"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents"
+                    ],
+                    resources=["*"],
                 )
             ],
         )
-        lambda_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["sagemaker:StartPipelineExecution"],
-                resources=[f"arn:aws:sagemaker:{Stack.of(self).region}:{Stack.of(self).account}:pipeline/aje-{stage}-ps-pipeline"],
-            )
+
+        lambda_role = iam.Role(
+            self, f"Aje{stage.capitalize()}PsLambdaRoleIam",
+            role_name=f"aje-{stage}-ps-lambdarole-iam",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
         )
+        lambda_policy.attach_to_role(lambda_role)
 
         trigger_fn = _lambda.Function(
             self, f"Aje{stage.capitalize()}PsTriggerFunctionLambda",
@@ -86,35 +104,41 @@ class AjePsInfraStack(Stack):
         )
 
         # ── CodeBuild – Build (Docker + ECR push) ────────────────────────────────
+        build_policy = iam.Policy(
+            self, f"Aje{stage.capitalize()}PsBuildPolicyIam",
+            policy_name=f"aje-{stage}-ps-buildpolicy-iam",
+            statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "ecr:GetAuthorizationToken",
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "ecr:PutImage",
+                        "ecr:InitiateLayerUpload",
+                        "ecr:UploadLayerPart",
+                        "ecr:CompleteLayerUpload",
+                        "ecr:CreateRepository",
+                        "ecr:DescribeRepositories",
+                        "sts:GetCallerIdentity",
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:GetObjectVersion",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
         build_role = iam.Role(
             self, f"Aje{stage.capitalize()}PsBuildRoleIam",
             role_name=f"aje-{stage}-ps-buildrole-iam",
             assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
         )
-        build_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "ecr:GetAuthorizationToken",
-                    "ecr:BatchCheckLayerAvailability",
-                    "ecr:GetDownloadUrlForLayer",
-                    "ecr:BatchGetImage",
-                    "ecr:PutImage",
-                    "ecr:InitiateLayerUpload",
-                    "ecr:UploadLayerPart",
-                    "ecr:CompleteLayerUpload",
-                    "ecr:CreateRepository",
-                    "ecr:DescribeRepositories",
-                    "sts:GetCallerIdentity",
-                    "logs:CreateLogGroup",
-                    "logs:CreateLogStream",
-                    "logs:PutLogEvents",
-                    "s3:GetObject",
-                    "s3:PutObject",
-                    "s3:GetObjectVersion",
-                ],
-                resources=["*"],
-            )
-        )
+        build_policy.attach_to_role(build_role)
 
         build_project = codebuild.Project(
             self, f"Aje{stage.capitalize()}PsBuildProjectCodeBuild",
@@ -128,32 +152,39 @@ class AjePsInfraStack(Stack):
         )
 
         # ── CodeBuild – Deploy (SageMaker pipeline upsert) ───────────────────────
+        deploy_policy = iam.Policy(
+            self, f"Aje{stage.capitalize()}PsDeployPolicyIam",
+            policy_name=f"aje-{stage}-ps-deploypolicy-iam",
+            statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "sagemaker:CreatePipeline",
+                        "sagemaker:UpdatePipeline",
+                        "sagemaker:StartPipelineExecution",
+                        "sagemaker:DescribePipeline",
+                        "sagemaker:ListPipelineExecutions",
+                        "iam:PassRole",
+                        "s3:PutObject",
+                        "s3:GetObject",
+                        "s3:GetObjectVersion",
+                        "s3:ListBucket",
+                        "sts:GetCallerIdentity",
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+
         deploy_role = iam.Role(
             self, f"Aje{stage.capitalize()}PsDeployRoleIam",
             role_name=f"aje-{stage}-ps-deployrole-iam",
             assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
         )
-        deploy_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "sagemaker:CreatePipeline",
-                    "sagemaker:UpdatePipeline",
-                    "sagemaker:StartPipelineExecution",
-                    "sagemaker:DescribePipeline",
-                    "sagemaker:ListPipelineExecutions",
-                    "iam:PassRole",
-                    "s3:PutObject",
-                    "s3:GetObject",
-                    "s3:GetObjectVersion",
-                    "s3:ListBucket",
-                    "sts:GetCallerIdentity",
-                    "logs:CreateLogGroup",
-                    "logs:CreateLogStream",
-                    "logs:PutLogEvents",
-                ],
-                resources=["*"],
-            )
-        )
+
+        deploy_policy.attach_to_role(deploy_role)
 
         deploy_project = codebuild.Project(
             self, f"Aje{stage.capitalize()}PsDeployProjectCodeBuild",
@@ -180,9 +211,57 @@ class AjePsInfraStack(Stack):
         source_output = codepipeline.Artifact("SourceOutput")
         build_output = codepipeline.Artifact("BuildOutput")
 
+        pipeline_policy = iam.Policy(
+            self, f"Aje{stage.capitalize()}PsPipelinePolicyIam",
+            policy_name=f"aje-{stage}-ps-pipelinepolicy-iam",
+            statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:GetObjectVersion",
+                        "s3:GetBucketVersioning",
+                        "s3:ListBucket",
+                    ],
+                    resources=[
+                        f"arn:aws:s3:::aje-{stage}*",
+                        f"arn:aws:s3:::aje-{stage}*/*"
+                    ],
+                ),
+                iam.PolicyStatement(
+                    actions=["codestar-connections:UseConnection"],
+                    resources=[gitlab_connection_arn] if gitlab_connection_arn else ["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=[
+                        "codebuild:BatchGetBuilds",
+                        "codebuild:StartBuild",
+                        "codebuild:StopBuild",
+                    ],
+                    resources=[
+                        build_project.project_arn,
+                        deploy_project.project_arn,
+                    ],
+                ),
+                iam.PolicyStatement(
+                    actions=["iam:PassRole"],
+                    resources=[f"arn:aws:iam::{self.account}:role/aje-{stage}-ps-*"],
+                ),
+            ],
+        )
+
+        pipeline_role = iam.Role(
+            self, f"Aje{stage.capitalize()}PsPipelineRoleIam",
+            role_name=f"aje-{stage}-ps-pipelinerole-iam",
+            assumed_by=iam.ServicePrincipal("codepipeline.amazonaws.com"),
+        )
+        pipeline_policy.attach_to_role(pipeline_role)
+
         codepipeline.Pipeline(
             self, f"Aje{stage.capitalize()}PsPipelineCodePipeline",
             pipeline_name=f"aje-{stage}-ps-pipeline-codepipeline",
+            role=pipeline_role,
+            artifact_bucket=codepipeline_bucket,
             stages=[
                 codepipeline.StageProps(
                     stage_name="Source",
