@@ -260,6 +260,26 @@ class AjePsInfraStack(Stack):
         )
         pipeline_policy.attach_to_role(pipeline_role)
 
+        # ── CodePipeline action roles ────────────────────────────────────────
+        # Permissions are attached by CDK via auto-generated DefaultPolicy on each role.
+        source_action_role = iam.Role(
+            self, f"Aje{stage.capitalize()}PsSourceActionRoleIam",
+            role_name=f"aje-{stage}-ps-sourceactionrole-iam",
+            assumed_by=iam.ArnPrincipal(pipeline_role.role_arn),
+        )
+
+        build_action_role = iam.Role(
+            self, f"Aje{stage.capitalize()}PsBuildActionRoleIam",
+            role_name=f"aje-{stage}-ps-buildactionrole-iam",
+            assumed_by=iam.ArnPrincipal(pipeline_role.role_arn),
+        )
+
+        deploy_action_role = iam.Role(
+            self, f"Aje{stage.capitalize()}PsDeployActionRoleIam",
+            role_name=f"aje-{stage}-ps-deployactionrole-iam",
+            assumed_by=iam.ArnPrincipal(pipeline_role.role_arn),
+        )
+
         codepipeline.Pipeline(
             self, f"Aje{stage.capitalize()}PsPipelineCodePipeline",
             pipeline_name=f"aje-{stage}-ps-pipeline-codepipeline",
@@ -276,6 +296,7 @@ class AjePsInfraStack(Stack):
                             repo="aje-analytics-model-pedido-sugerido",
                             branch="main",
                             output=source_output,
+                            role=source_action_role,
                         )
                     ],
                 ),
@@ -287,6 +308,7 @@ class AjePsInfraStack(Stack):
                             project=build_project,
                             input=source_output,
                             outputs=[build_output],
+                            role=build_action_role,
                             environment_variables={
                                 "STAGE": codebuild.BuildEnvironmentVariable(value=stage),
                                 "REGION": codebuild.BuildEnvironmentVariable(value=self.region),
@@ -302,6 +324,7 @@ class AjePsInfraStack(Stack):
                             action_name="Deploy_SageMaker_Pipeline",
                             project=deploy_project,
                             input=build_output,
+                            role=deploy_action_role,
                             environment_variables={
                                 "STAGE": codebuild.BuildEnvironmentVariable(value=stage),
                                 "REGION": codebuild.BuildEnvironmentVariable(value=self.region),
