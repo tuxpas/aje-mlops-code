@@ -81,14 +81,9 @@ def extraer_datos(pais, config, output_dir, resource_variables):
     prefix = config["s3_prefix"]
     id_prefix = config["id_prefix"]
 
-    # 1. Maestro de Productos (Redshift)
-    con = wr.data_api.redshift.connect(
-        cluster_id="dwh-cloud-storage-salesforce-prod",
-        database="dwh_prod",
-        db_user="dwhuser",
-        boto3_session=my_session
-    )
-    maestro_prod = wr.data_api.rds.read_sql_query(config["redshift_query"], con)
+    # 1. Maestro de Productos (S3)
+    obj_maestro_prod = s3.get_object(Bucket=resource_variables["BUCKET_ARTIFACTS"], Key=f"pedido_sugerido/{config["nombre"].lower()}/{pais}_maestro_productos.csv")
+    maestro_prod = pd.read_csv(io.BytesIO(obj_maestro_prod["Body"].read()), sep=";") 
     maestro_prod = maestro_prod[["cod_articulo_magic", "desc_articulo"]].drop_duplicates()
     maestro_prod = maestro_prod.groupby("cod_articulo_magic").first().reset_index()
     maestro_prod.to_csv(os.path.join(output_dir, config["maestro_csv"]), index=False)
