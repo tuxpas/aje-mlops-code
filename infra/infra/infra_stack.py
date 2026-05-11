@@ -4,6 +4,7 @@ from aws_cdk import (
     Stack,
     aws_s3 as s3,
     aws_dynamodb as dynamodb,
+    aws_ecr as ecr,
     aws_lambda as _lambda,
     aws_events as events,
     aws_events_targets as targets,
@@ -22,6 +23,15 @@ class AjePsInfraStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, stage: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # ── ECR ─────────────────────────────────────────────────────────────
+        for image_name in ["processing", "spark"]:
+            ecr.Repository(
+                self, f"Aje{stage.capitalize()}Ps{image_name.capitalize()}RepositoryEcr",
+                repository_name=f"aje-{stage}-ps-{image_name}",
+                removal_policy=RemovalPolicy.RETAIN,
+                image_scan_on_push=True,
+            )
 
         # ── S3 ──────────────────────────────────────────────────────────────
         codepipeline_bucket = s3.Bucket(
@@ -171,7 +181,6 @@ class AjePsInfraStack(Stack):
                         "ecr:InitiateLayerUpload",
                         "ecr:UploadLayerPart",
                         "ecr:CompleteLayerUpload",
-                        "ecr:CreateRepository",
                         "ecr:DescribeRepositories",
                         "sts:GetCallerIdentity",
                         "logs:CreateLogGroup",

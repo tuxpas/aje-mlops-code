@@ -19,15 +19,6 @@ echo "==> Authenticating with ECR..."
 aws ecr get-login-password --region "${REGION}" | \
     docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
-# Create repositories if they don't exist
-for REPO in "${PROCESSING_REPO}" "${SPARK_REPO}"; do
-    aws ecr describe-repositories --repository-names "${REPO}" --region "${REGION}" \
-        > /dev/null 2>&1 || \
-    aws ecr create-repository --repository-name "${REPO}" --region "${REGION}" \
-        --image-scanning-configuration scanOnPush=true
-    echo "Repository ready: ${REPO}"
-done
-
 # ---------- Processing image (steps 1 & 3: limpieza + reglas de negocio) ----------
 echo ""
 echo "==> Building processing image..."
