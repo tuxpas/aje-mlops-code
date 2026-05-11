@@ -7,7 +7,6 @@ los scripts PS_MP_X.py ya incluidos en cada imagen.
 import os
 import boto3
 import sagemaker
-from sagemaker import get_execution_role
 from botocore.exceptions import ClientError
 from sagemaker.processing import Processor, ProcessingInput, ProcessingOutput
 from sagemaker.workflow.steps import ProcessingStep, CacheConfig
@@ -15,9 +14,9 @@ from sagemaker.workflow.pipeline import Pipeline
 from sagemaker.workflow.parameters import ParameterString
 from sagemaker.workflow.functions import Join
 
-STAGE = os.environ.get("STAGE", "dev")
-REGION = os.environ.get("REGION", "us-east-2")
-ACCOUNT = os.environ.get("ACCOUNT", "832257724409")
+STAGE = os.environ.get("STAGE")
+REGION = os.environ.get("REGION")
+ACCOUNT = os.environ.get("ACCOUNT")
 
 BUCKET_ARTIFACTS = f"aje-{STAGE}-analytics-artifacts-s3"
 BUCKET_BACKUP = "aje-analytics-ps-backup"
@@ -52,6 +51,11 @@ def crear_pipeline(sagemaker_session, role, default_bucket, account_id):
         entrypoint=["python3", "/opt/program/PS_MP_1_limpieza.py"],
         base_job_name="ps-limpieza",
         sagemaker_session=sagemaker_session,
+        env={
+            "PAIS": code_country,
+            "BUCKET_ARTIFACTS": BUCKET_ARTIFACTS,
+            "TABLE_CONFIG": TABLE_CONFIG
+        },
     )
 
     step_limpieza = ProcessingStep(
@@ -65,11 +69,6 @@ def crear_pipeline(sagemaker_session, role, default_bucket, account_id):
             )
         ],
         cache_config=CacheConfig(enable_caching=True, expire_after="P3D"),
-        environment={
-            "PAIS": code_country,
-            "BUCKET_ARTIFACTS": BUCKET_ARTIFACTS,
-            "TABLE_CONFIG": TABLE_CONFIG
-        },
     )
 
     # ---------- ProcessingStep 2: Modelado (PySpark / ALS) ----------
@@ -82,6 +81,10 @@ def crear_pipeline(sagemaker_session, role, default_bucket, account_id):
         base_job_name="ps-modelado",
         sagemaker_session=sagemaker_session,
         max_runtime_in_seconds=7200,
+        env={
+            "PAIS": code_country,
+            "TABLE_CONFIG": TABLE_CONFIG
+        },
     )
 
     step_modelado = ProcessingStep(
@@ -104,10 +107,6 @@ def crear_pipeline(sagemaker_session, role, default_bucket, account_id):
             )
         ],
         cache_config=CacheConfig(enable_caching=True, expire_after="P3D"),
-        environment={
-            "PAIS": code_country,
-            "TABLE_CONFIG": TABLE_CONFIG
-        },
     )
 
     # ---------- ProcessingStep 3: Reglas de Negocio ----------
@@ -119,6 +118,11 @@ def crear_pipeline(sagemaker_session, role, default_bucket, account_id):
         entrypoint=["python3", "/opt/program/PS_MP_3_reglas_negocio.py"],
         base_job_name="ps-reglas",
         sagemaker_session=sagemaker_session,
+        env={
+            "PAIS": code_country,
+            "BUCKET_BACKUP": BUCKET_BACKUP,
+            "TABLE_CONFIG": TABLE_CONFIG
+        },
     )
 
     step_reglas = ProcessingStep(
@@ -147,11 +151,6 @@ def crear_pipeline(sagemaker_session, role, default_bucket, account_id):
                 destination=Join(on="/", values=[f"s3://{default_bucket}/ps-pipeline", code_country, "reglas"]),
             )
         ],
-        environment={
-            "PAIS": code_country,
-            "BUCKET_BACKUP": BUCKET_BACKUP,
-            "TABLE_CONFIG": TABLE_CONFIG
-        },
     )
 
     pipeline = Pipeline(
@@ -172,7 +171,7 @@ def main(pais=None, ejecutar=False):
         ejecutar: if True, starts the pipeline execution. If False, only upserts the pipeline.
     """
     sagemaker_session = sagemaker.Session()
-    role = os.getenv("SAGEMAKER_ROLE_ARN") or get_execution_role()
+    role = os.getenv("SAGEMAKER_EXECUTION_ROLE_ARN")
     #default_bucket = sagemaker_session.default_bucket()
     default_bucket = BUCKET_STEPS_RESULTS
     account_id = ACCOUNT or boto3.client("sts", region_name=REGION).get_caller_identity()["Account"]

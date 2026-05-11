@@ -1,0 +1,49 @@
+# buildspec-deploystack.yml
+# CodeBuild stage: deploy the infrastructure stack using CDK.
+#
+# Required CodeBuild project settings:
+#   - IAM permissions: cloudformation:*, iam:*, s3:*, logs:*
+#
+# Environment variables provided by CodePipeline:
+#   - STAGE: deployment stage (dev, staging, prod)
+#   - REGION: AWS region
+#   - ACCOUNT: AWS account ID
+#   - GITLAB_CONNECTION_ARN: CodeStar connection ARN for GitLab
+
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "==> Installing dependencies..."
+      - npm install -g aws-cdk
+      - pip install -r infra/requirements.txt
+
+  pre_build:
+    commands:
+      - echo "==> Validating CDK prerequisites..."
+      - cdk --version
+      - aws --version
+
+  build:
+    commands:
+      - echo "==> Synthesizing CDK stack..."
+      - cd infra
+      - |
+        cdk synth \
+          -c stage=$STAGE \
+          -c region=$REGION \
+          -c account=$ACCOUNT \
+          -c gitlab_connection_arn=$GITLAB_CONNECTION_ARN
+
+  post_build:
+    commands:
+      - echo "==> Deploying infrastructure stack..."
+      - |
+        cdk deploy \
+          -c stage=$STAGE \
+          -c region=$REGION \
+          -c account=$ACCOUNT \
+          -c gitlab_connection_arn=$GITLAB_CONNECTION_ARN \
+          --require-approval=never
+      - echo "==> Stack deployment complete."

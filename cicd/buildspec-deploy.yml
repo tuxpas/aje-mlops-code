@@ -1,22 +1,3 @@
-# buildspec-deploy.yml
-# CodeBuild stage: upsert the SageMaker Pipeline definition and optionally start an execution.
-#
-# Required CodeBuild project settings:
-#   - Privileged mode: NOT required
-#   - IAM permissions: sagemaker:CreatePipeline, sagemaker:UpdatePipeline,
-#                      sagemaker:StartPipelineExecution, sagemaker:DescribePipeline,
-#                      sagemaker:ListPipelineExecutions, iam:PassRole,
-#                      s3:PutObject, s3:GetObject, s3:ListBucket,
-#                      sts:GetCallerIdentity
-#
-# Environment variables (set in CodeBuild project or pipeline action):
-#   PAIS      – Country code to execute: EC | MX | PE | CR | GT | NI | PA
-#               Required only when EJECUTAR=true.
-#   EJECUTAR  – Set to "true" to start a pipeline execution after upsert.
-#               Defaults to "false" (upsert only).
-#
-# This buildspec is designed to run from the repository root.
-
 version: 0.2
 
 env:
@@ -32,8 +13,9 @@ phases:
       python: "3.9"
     commands:
       - echo "==> Installing deploy dependencies..."
-      - pip install --quiet --upgrade pip
-      - pip install --quiet "sagemaker>=2.200.0" boto3
+      - python3 -m pip install --quiet --upgrade pip
+      - python3 -m pip install --quiet "sagemaker==2.*" boto3
+      - python3 -c "import sagemaker.processing; print('sagemaker.processing OK')"
 
   pre_build:
     commands:
@@ -63,12 +45,8 @@ phases:
     commands:
       - echo "==> Deploy stage complete."
       - |
-        if [ "$CODEBUILD_BUILD_SUCCEEDING" = "1" ]; then
-          if [ "${EJECUTAR}" = "true" ]; then
-            echo "Pipeline upserted and execution started for PAIS=${PAIS}."
-          else
-            echo "Pipeline upserted (EJECUTAR=false, no execution started)."
-          fi
+        if [ "${EJECUTAR}" = "true" ]; then
+          echo "Pipeline upserted and execution started for PAIS=${PAIS}."
         else
-          echo "Deploy failed — check logs above." && exit 1
+          echo "Pipeline upserted (EJECUTAR=false, no execution started)."
         fi

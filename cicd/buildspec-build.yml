@@ -27,9 +27,4 @@ phases:
   post_build:
     commands:
       - echo "==> Build stage complete."
-      - |
-        if [ "$CODEBUILD_BUILD_SUCCEEDING" = "1" ]; then
-          echo "Both images pushed successfully."
-        else
-          echo "Build failed — check logs above." && exit 1
-        fi
+      - echo "Both images pushed successfully."

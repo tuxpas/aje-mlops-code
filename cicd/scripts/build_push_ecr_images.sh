@@ -13,7 +13,7 @@ SPARK_REPO="aje-${STAGE}-ps-spark"
 TAG="latest"
 
 # Ensure we're in the ecr/ directory (build context)
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 echo "==> Authenticating with ECR..."
 aws ecr get-login-password --region "${REGION}" | \
