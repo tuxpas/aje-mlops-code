@@ -106,6 +106,56 @@ class AjePsInfraStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
+
+        # ── CodeBuild – Deploy Stack (CDK deploy) ──────────────────────────────────
+        deploy_stack_policy = iam.Policy(
+            self, f"Aje{stage.capitalize()}PsDeployStackPolicyIam",
+            policy_name=f"aje-{stage}-ps-deploystackpolicy-iam",
+            statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "cloudformation:*",
+                        "iam:*",
+                        "s3:*",
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    actions=["ssm:GetParameter"],
+                    resources=[
+                        f"arn:aws:ssm:{self.region}:{self.account}:parameter/cdk-bootstrap/*"
+                    ],
+                ),
+                iam.PolicyStatement(
+                    actions=["sts:AssumeRole"],
+                    resources=[
+                        f"arn:aws:iam::{self.account}:role/cdk-*"
+                    ],
+                )
+            ],
+        )
+
+        deploy_stack_role = iam.Role(
+            self, f"Aje{stage.capitalize()}PsDeployStackRoleIam",
+            role_name=f"aje-{stage}-ps-deploystackrole-iam",
+            assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
+        )
+        deploy_stack_policy.attach_to_role(deploy_stack_role)
+
+        deploy_stack_project = codebuild.Project(
+            self, f"Aje{stage.capitalize()}PsDeployStackProjectCodeBuild",
+            project_name=f"aje-{stage}-ps-deploystackproject-codebuild",
+            build_spec=codebuild.BuildSpec.from_asset("../cicd/buildspec-deploystack.yml"),
+            environment=codebuild.BuildEnvironment(
+                build_image=codebuild.LinuxBuildImage.STANDARD_7_0,
+                privileged=False,
+            ),
+            role=deploy_stack_role,
+        )
+
         # ── CodeBuild – Build (Docker + ECR push) ────────────────────────────────
         build_policy = iam.Policy(
             self, f"Aje{stage.capitalize()}PsBuildPolicyIam",
@@ -156,8 +206,8 @@ class AjePsInfraStack(Stack):
 
         # ── CodeBuild – Deploy (SageMaker pipeline upsert) ───────────────────────
         deploy_policy = iam.Policy(
-            self, f"Aje{stage.capitalize()}PsDeployPolicyIam",
-            policy_name=f"aje-{stage}-ps-deploypolicy-iam",
+            self, f"Aje{stage.capitalize()}CodeBuildPsDeployPolicyIam",
+            policy_name=f"aje-{stage}-ps-codebuilddeploypolicy-iam",
             statements=[
                 iam.PolicyStatement(
                     actions=[
@@ -242,6 +292,7 @@ class AjePsInfraStack(Stack):
                         "codebuild:StopBuild",
                     ],
                     resources=[
+                        deploy_stack_project.project_arn,
                         build_project.project_arn,
                         deploy_project.project_arn,
                     ],
@@ -267,6 +318,12 @@ class AjePsInfraStack(Stack):
             role_name=f"aje-{stage}-ps-sourceactionrole-iam",
             assumed_by=iam.ArnPrincipal(pipeline_role.role_arn),
         )
+        
+        deploy_stack_action_role = iam.Role(
+            self, f"Aje{stage.capitalize()}PsDeployStackActionRoleIam",
+            role_name=f"aje-{stage}-ps-deploystackactionrole-iam",
+            assumed_by=iam.ArnPrincipal(pipeline_role.role_arn),
+        )
 
         build_action_role = iam.Role(
             self, f"Aje{stage.capitalize()}PsBuildActionRoleIam",
@@ -279,6 +336,44 @@ class AjePsInfraStack(Stack):
             role_name=f"aje-{stage}-ps-deployactionrole-iam",
             assumed_by=iam.ArnPrincipal(pipeline_role.role_arn),
         )
+
+        # ── Sagemaker execution role ────────────────────────────────────────
+
+        sagemaker_execution_policy = iam.Policy(
+            self, f"Aje{stage.capitalize()}SageMakerPsDeployPolicyIam",
+            policy_name=f"aje-{stage}-ps-sagemakerdeploypolicy-iam",
+            statements=[
+                iam.PolicyStatement(
+                    actions=[
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:ListBucket",
+                        "ecr:GetAuthorizationToken",
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:BatchGetImage",
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "sagemaker:CreateProcessingJob",
+                        "sagemaker:DescribeProcessingJob",
+                        "sagemaker:StopProcessingJob",
+                        "sagemaker:CreateTrainingJob",
+                        "sagemaker:DescribeTrainingJob",
+                        "sagemaker:StopTrainingJob",
+                    ],
+                    resources=["*"],
+                )
+            ],
+        )
+        sagemaker_execution_role = iam.Role(
+            self,
+            f"Aje{stage.capitalize()}PsSageMakerExecutionRoleIam",
+            role_name=f"aje-{stage}-ps-sagemaker-executionrole-iam",
+            assumed_by=iam.ServicePrincipal("sagemaker.amazonaws.com"),
+        )
+        
+        sagemaker_execution_policy.attach_to_role(sagemaker_execution_role)
 
         codepipeline.Pipeline(
             self, f"Aje{stage.capitalize()}PsPipelineCodePipeline",
@@ -301,13 +396,29 @@ class AjePsInfraStack(Stack):
                     ],
                 ),
                 codepipeline.StageProps(
+                    stage_name="DeployStack",
+                    actions=[
+                        cpactions.CodeBuildAction(
+                            action_name="Deploy_Infrastructure_Stack",
+                            project=deploy_stack_project,
+                            input=source_output,
+                            role=deploy_stack_action_role,
+                            environment_variables={
+                                "STAGE": codebuild.BuildEnvironmentVariable(value=stage),
+                                "REGION": codebuild.BuildEnvironmentVariable(value=self.region),
+                                "ACCOUNT": codebuild.BuildEnvironmentVariable(value=self.account),
+                                "GITLAB_CONNECTION_ARN": codebuild.BuildEnvironmentVariable(value=gitlab_connection_arn),
+                            }
+                        )
+                    ],
+                ),
+                codepipeline.StageProps(
                     stage_name="Build",
                     actions=[
                         cpactions.CodeBuildAction(
                             action_name="Build_ECR_Images",
                             project=build_project,
                             input=source_output,
-                            outputs=[build_output],
                             role=build_action_role,
                             environment_variables={
                                 "STAGE": codebuild.BuildEnvironmentVariable(value=stage),
@@ -323,12 +434,13 @@ class AjePsInfraStack(Stack):
                         cpactions.CodeBuildAction(
                             action_name="Deploy_SageMaker_Pipeline",
                             project=deploy_project,
-                            input=build_output,
+                            input=source_output,
                             role=deploy_action_role,
                             environment_variables={
                                 "STAGE": codebuild.BuildEnvironmentVariable(value=stage),
                                 "REGION": codebuild.BuildEnvironmentVariable(value=self.region),
                                 "ACCOUNT": codebuild.BuildEnvironmentVariable(value=self.account),
+                                "SAGEMAKER_EXECUTION_ROLE_ARN": codebuild.BuildEnvironmentVariable(value=sagemaker_execution_role.role_arn),
                             }
                         )
                     ],
